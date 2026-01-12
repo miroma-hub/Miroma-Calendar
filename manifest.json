@@ -9,19 +9,19 @@
   "description": "Assistente inteligente de gestão com integração Gemini AI.",
   "icons": [
     {
-      "src": "bc.png",
+      "src": "miroma.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "bc.png",
+      "src": "miroma.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "bc.png",
+      "src": "miroma.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
