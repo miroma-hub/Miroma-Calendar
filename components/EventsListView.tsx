@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { EventType, CalendarEvent } from '../types';
-import { MapPin, Calendar as CalendarIcon, Clock, User, PartyPopper, Plus, X, Search, Briefcase, Heart, Edit3, Tag, Euro } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Clock, User, PartyPopper, Plus, X, Search, Briefcase, Heart, Edit3, Tag, Euro, Cake, Users } from 'lucide-react';
 import { format, parseISO, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -38,7 +38,8 @@ const EventsListView: React.FC = () => {
       const lowerTitle = event.title.toLowerCase();
       const lowerPack = (event.packName || '').toLowerCase();
       if (lowerTitle.includes('batizado') || lowerPack.includes('batizado')) return 'Batizado';
-      if (lowerTitle.includes('aniversário') || lowerPack.includes('aniversário')) return 'Aniversário';
+      if (lowerTitle.includes('aniversário') || lowerPack.includes('aniversário') || lowerTitle.includes('aniv')) return 'Aniversário';
+      if (lowerTitle.includes('reunião') || lowerPack.includes('reunião')) return 'Reunião';
       return 'Casamento';
   };
 
@@ -51,7 +52,8 @@ const EventsListView: React.FC = () => {
   const getIconByCategory = (category: string) => {
       if (category === 'Reunião') return <Briefcase size={18} className="text-blue-400" />;
       if (category === 'Pessoal') return <Heart size={18} className="text-red-400" />;
-      if (category === 'Batizado') return <PartyPopper size={18} className="text-purple-400" />;
+      if (category === 'Batizado') return <Users size={18} className="text-purple-400" />;
+      if (category === 'Aniversário') return <Cake size={18} className="text-orange-400" />;
       return <PartyPopper size={18} className="text-pink-400" />;
   };
 
@@ -59,6 +61,7 @@ const EventsListView: React.FC = () => {
       if (category === 'Reunião') return 'border-blue-500/30 bg-blue-500/10 text-blue-300';
       if (category === 'Pessoal') return 'border-red-500/30 bg-red-500/10 text-red-300';
       if (category === 'Batizado') return 'border-purple-500/30 bg-purple-500/10 text-purple-300';
+      if (category === 'Aniversário') return 'border-orange-500/30 bg-orange-500/10 text-orange-300';
       return 'border-pink-500/30 bg-pink-500/10 text-pink-300';
   };
 
@@ -66,6 +69,7 @@ const EventsListView: React.FC = () => {
       if (category === 'Reunião') return 'from-blue-600 to-indigo-700';
       if (category === 'Pessoal') return 'from-red-600 to-pink-700';
       if (category === 'Batizado') return 'from-purple-600 to-fuchsia-700';
+      if (category === 'Aniversário') return 'from-orange-600 to-amber-700';
       return 'from-pink-600 to-rose-700';
   }
 
@@ -94,7 +98,6 @@ const EventsListView: React.FC = () => {
             Próximas Datas
           </h3>
           
-          {/* GRELHA COM ESPAÇAMENTO VERTICAL AMPLIADO (gap-y-14) */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-y-14 gap-x-8">
             {upcomingEvents.map(event => {
                const client = clients.find(c => c.id === event.clientId);
@@ -207,6 +210,38 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
     const [description, setDescription] = useState(initialData?.description || '');
     const [type, setType] = useState<EventType>(initialData?.type || EventType.EVENT);
     const [packName, setPackName] = useState(initialData?.packName || '');
+    
+    // Novo estado para categoria visual
+    const [category, setCategory] = useState<string>('Casamento');
+
+    useEffect(() => {
+        if (initialData) {
+            // Tenta detectar a categoria a partir dos dados existentes
+            const t = initialData.title.toLowerCase();
+            const p = (initialData.packName || '').toLowerCase();
+            if (initialData.type === EventType.WORK) setCategory('Reunião');
+            else if (initialData.type === EventType.PERSONAL) setCategory('Pessoal');
+            else if (t.includes('batizado') || p.includes('batizado')) setCategory('Batizado');
+            else if (t.includes('aniv') || p.includes('aniv')) setCategory('Aniversário');
+            else setCategory('Casamento');
+        }
+    }, [initialData]);
+
+    const categories = [
+        { name: 'Casamento', icon: PartyPopper, color: 'text-pink-400', type: EventType.EVENT },
+        { name: 'Batizado', icon: Users, color: 'text-purple-400', type: EventType.EVENT },
+        { name: 'Aniversário', icon: Cake, color: 'text-orange-400', type: EventType.EVENT },
+        { name: 'Reunião', icon: Briefcase, color: 'text-blue-400', type: EventType.WORK },
+        { name: 'Pessoal', icon: Heart, color: 'text-red-400', type: EventType.PERSONAL }
+    ];
+
+    const handleCategorySelect = (cat: any) => {
+        setCategory(cat.name);
+        setType(cat.type);
+        if (!packName || categories.some(c => c.name === packName)) {
+            setPackName(cat.name);
+        }
+    };
 
     const handleSubmit = () => {
         if(!title || !date) return;
@@ -221,7 +256,7 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
             description, 
             location, 
             type, 
-            packName 
+            packName: packName || category 
         });
     }
 
@@ -232,34 +267,51 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
                     <div><h3 className="text-xl font-bold text-white">{initialData ? 'Editar Evento' : 'Novo Evento'}</h3></div>
                     <button type="button" onClick={onClose}><X className="text-slate-400 hover:text-white"/></button>
                 </div>
-                <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Cliente</label><select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1"><option value="">Selecione...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Data</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Início</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Fim</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Local</label><input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Valor (€)</label><input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Tipo</label>
-                            <select value={type} onChange={e => setType(e.target.value as EventType)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1">
-                                <option value={EventType.EVENT}>Evento</option>
-                                <option value={EventType.WORK}>Trabalho</option>
-                                <option value={EventType.PERSONAL}>Pessoal</option>
-                            </select>
+                
+                <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+                    {/* Seletor de Categorias/Tags */}
+                    <div>
+                        <label className="text-xs text-slate-400 uppercase font-black tracking-widest mb-3 block">Tipo de Serviço / Tag</label>
+                        <div className="flex flex-wrap gap-2">
+                            {categories.map((cat) => (
+                                <button
+                                    key={cat.name}
+                                    type="button"
+                                    onClick={() => handleCategorySelect(cat)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${category === cat.name ? 'bg-slate-800 border-white/20 ring-1 ring-white/10' : 'bg-slate-900/50 border-slate-700/50 text-slate-500'}`}
+                                >
+                                    <cat.icon size={16} className={category === cat.name ? cat.color : 'text-slate-600'} />
+                                    <span className={`text-sm font-bold ${category === cat.name ? 'text-white' : ''}`}>{cat.name}</span>
+                                </button>
+                            ))}
                         </div>
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Pack / Serviço</label><input type="text" value={packName} onChange={e => setPackName(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
                     </div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold">Notas</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 h-24"></textarea></div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Título do Evento</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Casamento Joana & Pedro" className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Cliente Responsável</label><select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none"><option value="">Selecione um cliente...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Data</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Início</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Fim</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none" /></div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Local / Quinta</label><input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Nome do local" className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Valor do Contrato (€)</label><input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none font-mono" /></div>
+                    </div>
+                    
+                    <div><label className="text-xs text-slate-400 uppercase font-bold">Nome do Pack / Sub-Tag (Opcional)</label><input type="text" value={packName} onChange={e => setPackName(e.target.value)} placeholder="Ex: Pack Diamante, Mini-Sessão..." className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 focus:border-pink-500 outline-none" /></div>
+                    
+                    <div><label className="text-xs text-slate-400 uppercase font-bold">Observações e Detalhes</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 h-24 resize-none custom-scrollbar outline-none focus:border-pink-500"></textarea></div>
                 </div>
+                
                 <div className="mt-6 pt-4 border-t border-slate-700/50">
-                     <button type="button" onClick={handleSubmit} className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg">{initialData ? 'Salvar Alterações' : 'Agendar Evento'}</button>
+                     <button type="button" onClick={handleSubmit} className="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-[0.98]">
+                        {initialData ? 'Salvar Alterações' : 'Agendar Novo Evento'}
+                     </button>
                 </div>
             </div>
         </div>
