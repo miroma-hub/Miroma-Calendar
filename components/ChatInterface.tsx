@@ -108,7 +108,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
       };
       reader.readAsDataURL(file);
     }
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -118,6 +117,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
 
     try {
       switch (name) {
+        case 'getAppData': {
+          result = JSON.stringify({
+            clients: currentClientsRef.current,
+            events: currentEventsRef.current,
+            packs: currentPacksRef.current
+          });
+          break;
+        }
+
         case 'addEvent': {
           const searchTitle = args.title.trim().toLowerCase();
           const isDuplicate = currentEventsRef.current.some(e => 
@@ -126,7 +134,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
           );
 
           if (isDuplicate) {
-             return "Aviso: Já existe um evento similar nesta data. Operação ignorada para evitar duplicidade.";
+             return "Aviso: Já existe um evento similar nesta data.";
           }
 
           let typeEnum = EventType.EVENT;
@@ -302,19 +310,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
       let response = await chat.sendMessage({ message: messageParts as any });
       let toolCalls = response.functionCalls;
 
-      if (toolCalls && toolCalls.length > 0) {
+      while (toolCalls && toolCalls.length > 0) {
         const functionResponses = [];
         for (const call of toolCalls) {
             const res = await executeTool(call);
             functionResponses.push({ id: call.id, name: call.name, response: { result: res } });
         }
-        response = await chat.sendMessage({ message: functionResponses.map(fr => ({ functionResponse: fr })) });
+        const nextStep = await chat.sendMessage({ message: functionResponses.map(fr => ({ functionResponse: fr })) });
+        response = nextStep;
+        toolCalls = response.functionCalls;
       }
 
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Concluído.", timestamp: new Date() }]);
     } catch (e) {
       console.error(e);
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro na conexão ou processamento da imagem.", timestamp: new Date() }]);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro na conexão ou processamento.", timestamp: new Date() }]);
     } finally { setIsProcessing(false); }
   };
 
