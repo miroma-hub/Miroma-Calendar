@@ -23,7 +23,6 @@ declare global {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   const { addEvent, updateEvent, deleteEvent, addClient, updateClient, deleteClient, deletePack, clients, events, packs } = useApp();
   
-  // Refs para manter o estado atualizado durante o loop de ferramentas da IA (evita duplicados na mesma turna)
   const currentClientsRef = useRef<Client[]>([]);
   const currentEventsRef = useRef<CalendarEvent[]>([]);
   const currentPacksRef = useRef<Pack[]>([]);
@@ -48,6 +47,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   const [attachment, setAttachment] = useState<{ data: string; mimeType: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const restartTimerRef = useRef<any>(null);
 
@@ -98,6 +98,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     } catch (err) { setIsListening(false); }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Data = (reader.result as string).split(',')[1];
+        setAttachment({ data: base64Data, mimeType: file.type });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const executeTool = async (functionCall: any) => {
     const { name, args } = functionCall;
     let result = '';
@@ -134,7 +148,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
                     notes: 'Criado via AI'
                 });
                 targetClientId = createdClient.id;
-                // Atualiza ref local para próximas ferramentas no mesmo loop
                 currentClientsRef.current = [...currentClientsRef.current, createdClient];
             }
           }
@@ -251,12 +264,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() && !attachment || isProcessing) return;
+    if ((!input.trim() && !attachment) || isProcessing) return;
     if (isListening) { setIsListening(false); if (recognitionRef.current) recognitionRef.current.stop(); }
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
+    
     const currentInput = input;
+    const currentAttachment = attachment;
     
     setInput('');
     setAttachment(null);
@@ -274,7 +289,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
         history: history
       });
 
-      let response = await chat.sendMessage({ message: currentInput });
+      let messageParts: (string | Part)[] = [currentInput || "Analise esta imagem"];
+      if (currentAttachment) {
+        messageParts.push({
+          inlineData: {
+            data: currentAttachment.data,
+            mimeType: currentAttachment.mimeType
+          }
+        });
+      }
+
+      let response = await chat.sendMessage({ message: messageParts as any });
       let toolCalls = response.functionCalls;
 
       if (toolCalls && toolCalls.length > 0) {
@@ -288,7 +313,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
 
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Concluído.", timestamp: new Date() }]);
     } catch (e) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro na conexão.", timestamp: new Date() }]);
+      console.error(e);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro na conexão ou processamento da imagem.", timestamp: new Date() }]);
     } finally { setIsProcessing(false); }
   };
 
@@ -314,9 +340,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
       </div>
 
       <div className="p-4 bg-slate-900 border-t border-slate-700">
+        {attachment && (
+          <div className="mb-2 relative inline-block">
+             <img src={`data:${attachment.mimeType};base64,${attachment.data}`} className="h-16 w-16 object-cover rounded-lg border border-blue-500 shadow-md" />
+             <button onClick={() => setAttachment(null)} className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><X size={12}/></button>
+          </div>
+        )}
         <div className="gemini-border p-[1px] rounded-3xl">
           <div className="bg-slate-900 rounded-3xl flex items-center px-2 py-1">
             <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={isListening ? "Ouvindo..." : "Escreva ou fale..."} className="flex-1 bg-transparent border-none focus:ring-0 text-white px-3 py-3" />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-blue-400 transition-colors"><ImageIcon size={20} /></button>
             <button onClick={toggleListening} className={`p-2 rounded-full ${isListening ? 'bg-blue-600 animate-pulse' : 'text-slate-400'}`}><Mic size={20} /></button>
             <button onClick={handleSend} className="p-2 text-blue-400"><Send size={20} /></button>
           </div>
