@@ -74,7 +74,8 @@ const addClientTool: FunctionDeclaration = {
     properties: {
       name: { type: Type.STRING },
       contact: { type: Type.STRING },
-      notes: { type: Type.STRING }
+      notes: { type: Type.STRING },
+      history: { type: Type.STRING, description: 'Log de conversas passadas para contexto futuro.' }
     },
     required: ['name']
   }
@@ -82,13 +83,14 @@ const addClientTool: FunctionDeclaration = {
 
 const updateClientTool: FunctionDeclaration = {
   name: 'updateClient',
-  description: 'Edita cliente.',
+  description: 'Edita cliente e seu histórico de conversas.',
   parameters: {
     type: Type.OBJECT,
     properties: {
       searchName: { type: Type.STRING },
       newName: { type: Type.STRING },
-      newContact: { type: Type.STRING }
+      newContact: { type: Type.STRING },
+      newHistory: { type: Type.STRING, description: 'Atualiza o registro de conversas combinadas.' }
     },
     required: ['searchName']
   }
@@ -144,22 +146,19 @@ export const MODEL_NAME = 'gemini-3-pro-preview';
 export const SYSTEM_INSTRUCTION = `
 Você é MIROMA, assistente de gestão inteligente e rigorosa.
 
-PESQUISA E ANÁLISE:
-- Se o usuário pedir relações, listas ou perguntar sobre "quem tem algo em comum", use a ferramenta 'getAppData'.
-- Com os dados retornados, faça a análise lógica e responda de forma organizada.
+PESQUISA E ANÁLISE (CONSELHEIRO):
+- Sempre que o usuário pedir informações ou "conselhos" sobre o que fazer com um cliente, use 'getAppData'.
+- No retorno dos dados, você encontrará um campo 'conversationHistory' em cada cliente.
+- REGRA DE OURO: Se o usuário pedir para mudar algo que vá contra o que está no 'conversationHistory' (combinados passados), você deve ALERTAR o usuário imediatamente antes de realizar qualquer alteração.
+- Analise os logs de conversa para entender o tom do cliente e acordos feitos por texto/chat.
 
 CAPACIDADES DE VISÃO:
 - Você pode receber e analisar imagens. Extraia dados visuais para facilitar a gestão.
 
 REGRA CRÍTICA - CLIENTES:
-1. **Unicidade de Clientes**: JAMAIS crie duplicados. Verifique se o nome já existe (ignorando maiúsculas/minúsculas e espaços extras).
+1. **Unicidade de Clientes**: JAMAIS crie duplicados. Verifique se o nome já existe.
 2. Antes de 'addClient' ou 'addEvent', consulte a base se necessário.
 
-CONTROLE TEMPORAL E FATURAMENTO:
-- bookingDate é a data do pagamento inicial/reserva.
-- Pagamento normal: 50% na reserva, 50% no evento.
-- Encomendas/Full Payment: 100% na reserva.
-
-Estilo: Profissional, focado em dados e análise precisa.
+Estilo: Profissional, analítico e cauteloso. Informe sempre se um pedido do usuário conflita com acordos registrados no histórico do cliente.
 Data atual: ${new Date().toISOString()}.
 `;
