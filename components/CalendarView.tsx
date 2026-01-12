@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO, addMonths, subMonths, startOfYear, eachMonthOfInterval, addDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, MapPin, X, Edit3, Calendar as CalendarIcon, Clock, ZoomIn, ZoomOut, User, Euro, Trash2, Tag, Info, PartyPopper, Briefcase, Heart, Cake, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, X, Edit3, Calendar as CalendarIcon, Clock, ZoomIn, ZoomOut, User, Euro, Trash2, Tag, Info, PartyPopper, Briefcase, Heart, Cake, Users, FileText } from 'lucide-react';
 import { EventType, CalendarEvent } from '../types';
 
 interface CalendarViewProps {
@@ -262,14 +262,35 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                                 </div>
                             </div>
 
-                            {detailEvent.description && (
-                                <div>
+                            {(detailEvent.description || (client && client.notes)) && (
+                                <div className="space-y-4">
                                     <label className="flex items-center gap-2 text-[10px] uppercase font-black text-slate-500 tracking-widest mb-2">
-                                        <Info size={14} /> Notas Adicionais
+                                        <Info size={14} /> Notas & Observações
                                     </label>
-                                    <p className="text-slate-400 text-sm leading-relaxed italic bg-slate-900/50 p-4 rounded-xl border border-slate-800/50">
-                                        {detailEvent.description}
-                                    </p>
+                                    
+                                    {/* Notas do Evento */}
+                                    {detailEvent.description && (
+                                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800/50">
+                                            <div className="flex items-center gap-2 text-[9px] text-pink-400 uppercase font-black mb-1.5 opacity-70">
+                                                <CalendarIcon size={10} /> Notas do Evento
+                                            </div>
+                                            <p className="text-slate-300 text-sm leading-relaxed italic">
+                                                {detailEvent.description}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Notas do Cliente */}
+                                    {client && client.notes && (
+                                        <div className="bg-blue-900/10 p-4 rounded-xl border border-blue-500/20">
+                                            <div className="flex items-center gap-2 text-[9px] text-blue-400 uppercase font-black mb-1.5 opacity-70">
+                                                <FileText size={10} /> Ficha do Cliente: {client.name}
+                                            </div>
+                                            <p className="text-slate-300 text-sm leading-relaxed italic">
+                                                {client.notes}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
