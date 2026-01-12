@@ -6,8 +6,13 @@
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
-  "description": "Assistente inteligente de gestão.",
+  "description": "Assistente inteligente de gestão com integração Gemini AI.",
   "icons": [
+    {
+      "src": "miroma.ico",
+      "sizes": "16x16 24x24 32x32 48x48 64x64",
+      "type": "image/x-icon"
+    },
     {
       "src": "miroma.png",
       "sizes": "192x192",
