@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO, addMonths, subMonths, startOfYear, eachMonthOfInterval, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,13 +25,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
     }
   }, [selectedEventId, events]);
 
-  // CORREÇÃO: Gerar dias começando no início da semana (Segunda-feira = 1) do 1º dia do mês
+  // Lógica de Grid Estável (Segunda-feira)
   const monthStart = startOfMonth(calendarDate);
-  const monthEnd = endOfMonth(calendarDate);
-  const daysInMonth = eachDayOfInterval({ 
-    start: startOfWeek(monthStart, { weekStartsOn: 1 }), 
-    end: endOfWeek(monthEnd, { weekStartsOn: 1 }) 
-  });
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const daysInGrid = Array.from({ length: 42 }).map((_, i) => addDays(gridStart, i));
 
   const monthsInYear = eachMonthOfInterval({ 
     start: startOfYear(calendarDate), 
@@ -50,6 +47,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
       else if (viewMode === 'DAY') setCalendarDate(addDays(calendarDate, 1));
   };
 
+  // Implementação de Scroll-Zoom (Wheel Support)
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+      // Pequeno debounce natural para não saltar múltiplas vistas de uma vez
+      if (Math.abs(e.deltaY) < 50) return;
+
+      if (e.deltaY < 0) { // Scroll Up = Zoom In
+          if (viewMode === 'YEAR') setViewMode('MONTH');
+          else if (viewMode === 'MONTH') setViewMode('DAY');
+      } else { // Scroll Down = Zoom Out
+          if (viewMode === 'DAY') setViewMode('MONTH');
+          else if (viewMode === 'MONTH') setViewMode('YEAR');
+      }
+  }, [viewMode]);
+
   const getEventsForDay = (day: Date) => events.filter(event => isSameDay(parseISO(event.start), day));
 
   const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
@@ -59,7 +70,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
   };
 
   const handleDelete = (id: string) => {
-      if (window.confirm("Tem certeza que deseja excluir este evento permanentemente?")) {
+      if (window.confirm("Deseja realmente excluir este evento?")) {
           deleteEvent(id);
           setDetailEvent(null);
           setSelectedEventId(null);
@@ -77,76 +88,141 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
   };
 
   return (
-    <div ref={containerRef} className={`h-full flex flex-col ${isEmbedded ? 'p-4' : 'p-6'} overflow-hidden relative`} onClick={() => { setDetailEvent(null); setSelectedEventId(null); }}>
-      <div className="flex justify-between items-center mb-4 z-10">
-        <h2 className={`font-bold text-white capitalize ${isEmbedded ? 'text-2xl' : 'text-3xl'} gemini-gradient-text`}>
+    <div 
+      ref={containerRef} 
+      onWheel={handleWheel}
+      className={`h-full flex flex-col ${isEmbedded ? 'p-4' : 'p-6'} overflow-hidden relative select-none`} 
+      onClick={() => { setDetailEvent(null); setSelectedEventId(null); }}
+    >
+      <div className="flex justify-between items-center mb-6 z-10">
+        <h2 className={`font-black text-white capitalize ${isEmbedded ? 'text-2xl' : 'text-3xl'} gemini-gradient-text tracking-tighter`}>
           {viewMode === 'MONTH' ? format(calendarDate, 'MMMM yyyy', { locale: ptBR }) : viewMode === 'YEAR' ? format(calendarDate, 'yyyy', { locale: ptBR }) : format(calendarDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
         </h2>
         <div className="flex items-center gap-4">
-            <div className="flex gap-1 bg-slate-800/30 rounded-lg p-1 border border-slate-700/30">
-                <button onClick={() => setViewMode('DAY')} className={`p-1 rounded ${viewMode === 'DAY' ? 'bg-blue-600/80 text-white' : 'text-slate-400'}`}><Clock size={16}/></button>
-                <button onClick={() => setViewMode('MONTH')} className={`p-1 rounded ${viewMode === 'MONTH' ? 'bg-blue-600/80 text-white' : 'text-slate-400'}`}><ZoomIn size={16}/></button>
-                <button onClick={() => setViewMode('YEAR')} className={`p-1 rounded ${viewMode === 'YEAR' ? 'bg-blue-600/80 text-white' : 'text-slate-400'}`}><ZoomOut size={16}/></button>
+            <div className="flex gap-1 bg-slate-800/40 rounded-xl p-1 border border-slate-700/30 backdrop-blur-md">
+                <button onClick={() => setViewMode('DAY')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'DAY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Dia"><Clock size={18}/></button>
+                <button onClick={() => setViewMode('MONTH')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'MONTH' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Mês"><ZoomIn size={18}/></button>
+                <button onClick={() => setViewMode('YEAR')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'YEAR' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Ano"><ZoomOut size={18}/></button>
             </div>
             <div className="flex gap-2">
-                <button onClick={prev} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300"><ChevronLeft size={24} /></button>
-                <button onClick={next} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300"><ChevronRight size={24} /></button>
+                <button onClick={prev} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300 transition-colors"><ChevronLeft size={24} /></button>
+                <button onClick={next} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300 transition-colors"><ChevronRight size={24} /></button>
             </div>
         </div>
       </div>
 
+      <div key={viewMode} className={`flex-1 overflow-hidden ${viewMode === 'YEAR' ? 'animate-zoom-out' : 'animate-zoom-in'}`}>
       {viewMode === 'MONTH' ? (
-        <>
-            <div className="grid grid-cols-7 gap-2 mb-2 text-slate-400 font-medium text-center text-sm uppercase tracking-wide">
+        <div className="h-full flex flex-col">
+            <div className="grid grid-cols-7 gap-2 mb-4 text-slate-500 font-black text-center text-[10px] uppercase tracking-[0.2em] border-b border-slate-800/30 pb-2">
                 {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => <div key={day}>{day}</div>)}
             </div>
-            <div className="grid grid-cols-7 gap-2 flex-1 overflow-y-auto animate-zoom-in custom-scrollbar">
-                {daysInMonth.map((day) => {
+            <div className="grid grid-cols-7 gap-2 flex-1 overflow-y-auto custom-scrollbar pr-1">
+                {daysInGrid.map((day) => {
                 const dayEvents = getEventsForDay(day);
                 const isCurrentDay = isToday(day);
                 const isThisMonth = isSameMonth(day, calendarDate);
+                const hasEvents = dayEvents.length > 0;
+                
                 return (
                     <div key={day.toISOString()} onClick={(e) => { e.stopPropagation(); setCalendarDate(day); setViewMode('DAY'); }}
-                    className={`min-h-[80px] border rounded-xl p-2 flex flex-col transition-all cursor-zoom-in ${isThisMonth ? 'bg-slate-800/20 border-slate-700/30' : 'bg-slate-900/10 border-slate-800/10 opacity-30'} ${isCurrentDay ? 'ring-1 ring-blue-500 bg-slate-800/40' : ''}`}>
-                    <div className="mb-1"><span className={`text-sm font-bold ${isCurrentDay ? 'text-blue-400' : 'text-slate-500'}`}>{format(day, 'd')}</span></div>
-                    <div className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
-                        {dayEvents.map(event => {
+                    className={`min-h-[105px] border rounded-2xl p-2 flex flex-col transition-all cursor-zoom-in group relative
+                      ${isThisMonth ? 'bg-slate-800/10 border-slate-700/30' : 'bg-transparent border-transparent opacity-10 pointer-events-none'} 
+                      ${isCurrentDay ? 'ring-2 ring-blue-500/50 bg-slate-800/40 shadow-blue-500/20 shadow-xl' : ''}
+                      ${hasEvents && isThisMonth ? 'hover:border-blue-500/60 hover:bg-slate-800/30 shadow-blue-500/5 shadow-inner' : 'hover:bg-slate-800/20'}
+                    `}>
+                    
+                    {hasEvents && isThisMonth && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent rounded-2xl pointer-events-none"></div>
+                    )}
+
+                    <div className="flex justify-between items-center mb-1.5 relative z-10">
+                        <span className={`text-xs font-black ${isCurrentDay ? 'text-blue-400' : 'text-slate-500'}`}>{format(day, 'd')}</span>
+                        {hasEvents && isThisMonth && (
+                            <div className="flex gap-0.5">
+                                {dayEvents.slice(0, 3).map(ev => <div key={ev.id} className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>)}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="space-y-1 overflow-hidden flex-1 relative z-10">
+                        {dayEvents.slice(0, 3).map(event => {
                             const styles = getCategoryStyles(event);
                             return (
-                                <div key={event.id} onClick={(e) => handleEventClick(event, e)} className={`text-[10px] p-1.5 rounded-lg border-l-2 truncate ${styles.bg} ${styles.border.replace('border-', 'border-l-')}`}>
+                                <div key={event.id} onClick={(e) => handleEventClick(event, e)} 
+                                  className={`text-[9px] p-1.5 rounded-lg border-l-[3px] truncate font-bold shadow-sm transition-all hover:translate-x-1 hover:brightness-125 ${styles.bg} ${styles.border.replace('border-', 'border-l-')} text-white flex items-center gap-1.5`}>
+                                    <styles.icon size={8} />
                                     {event.title}
                                 </div>
                             )
                         })}
+                        {dayEvents.length > 3 && (
+                            <div className="text-[8px] text-center font-black text-slate-500 uppercase tracking-tighter mt-1 bg-slate-800/50 py-0.5 rounded-full backdrop-blur-sm border border-slate-700/20">
+                                + {dayEvents.length - 3} itens
+                            </div>
+                        )}
                     </div>
                     </div>
                 );
                 })}
             </div>
-        </>
+        </div>
       ) : viewMode === 'YEAR' ? (
-          <div className="grid grid-cols-4 gap-4 flex-1 animate-zoom-out overflow-y-auto">
-              {monthsInYear.map(month => (
-                  <div key={month.toISOString()} onClick={(e) => { e.stopPropagation(); setCalendarDate(month); setViewMode('MONTH'); }} className="border border-slate-700/30 bg-slate-800/20 rounded-xl p-4 hover:border-blue-500/50 cursor-zoom-in flex flex-col">
-                      <h3 className="text-lg font-bold text-white mb-2 capitalize">{format(month, 'MMMM', {locale: ptBR})}</h3>
-                      <div className="mt-auto text-xs text-slate-400">{events.filter(e => isSameMonth(parseISO(e.start), month)).length} eventos</div>
-                  </div>
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-full overflow-y-auto custom-scrollbar pr-2">
+              {monthsInYear.map(month => {
+                  const monthEvents = events.filter(e => isSameMonth(parseISO(e.start), month));
+                  const isCurrentMonth = isSameMonth(month, new Date());
+                  const intensity = Math.min(monthEvents.length * 12, 100);
+                  
+                  return (
+                    <div key={month.toISOString()} onClick={(e) => { e.stopPropagation(); setCalendarDate(month); setViewMode('MONTH'); }} 
+                      className={`border rounded-3xl p-6 flex flex-col justify-between transition-all hover:scale-[1.03] cursor-zoom-in relative overflow-hidden group
+                        ${isCurrentMonth ? 'bg-blue-600/10 border-blue-500/40 ring-1 ring-blue-500/20 shadow-2xl' : 'bg-slate-800/20 border-slate-700/30 hover:border-blue-500/50 hover:bg-slate-800/30'}
+                      `}>
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-125 group-hover:bg-blue-500/10"></div>
+                        
+                        <div>
+                            <h3 className="text-xl font-black text-white mb-2 capitalize tracking-tight group-hover:text-blue-400 transition-colors">{format(month, 'MMMM', {locale: ptBR})}</h3>
+                            <div className="flex items-center gap-2 mt-4">
+                                <div className="flex-1 h-2.5 bg-slate-900/60 rounded-full overflow-hidden shadow-inner border border-slate-800/50">
+                                    <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-1000 ease-out" style={{ width: `${intensity}%` }}></div>
+                                </div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{monthEvents.length}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-8 flex flex-wrap gap-2">
+                            {monthEvents.slice(0, 15).map((e, idx) => {
+                                const styles = getCategoryStyles(e);
+                                return <div key={idx} className={`w-3 h-3 rounded-full shadow-lg ${styles.bg.replace('/10', '')} border border-white/5 transition-transform hover:scale-125`} title={e.title}></div>
+                            })}
+                            {monthEvents.length > 15 && <span className="text-[8px] font-black text-slate-500 flex items-center bg-slate-800 px-1.5 py-0.5 rounded-full">+ {monthEvents.length - 15}</span>}
+                        </div>
+                    </div>
+                  );
+              })}
           </div>
       ) : (
-          <div className="flex-1 overflow-y-auto animate-zoom-in relative custom-scrollbar">
+          <div className="h-full overflow-y-auto relative custom-scrollbar pr-2">
               <div className="absolute top-0 left-0 w-full min-h-full">
                   {Array.from({ length: 24 }, (_, i) => i).map(hour => (
-                      <div key={hour} className="flex border-b border-slate-800/30 min-h-[60px]">
-                          <div className="w-16 text-right pr-4 text-xs text-slate-500 py-2 border-r border-slate-800/30">{hour.toString().padStart(2, '0')}:00</div>
-                          <div className="flex-1 relative bg-slate-900/5">
+                      <div key={hour} className="flex border-b border-slate-800/20 min-h-[90px]">
+                          <div className="w-24 text-right pr-6 text-[10px] text-slate-500 font-black py-7 border-r border-slate-800/30 bg-slate-900/10 uppercase tracking-[0.2em]">{hour.toString().padStart(2, '0')}:00</div>
+                          <div className="flex-1 relative bg-slate-900/5 hover:bg-slate-800/10 transition-colors">
                               {getEventsForDay(calendarDate).filter(event => new Date(event.start).getHours() === hour).map(event => {
                                   const styles = getCategoryStyles(event);
                                   return (
-                                      <div key={event.id} onClick={(e) => handleEventClick(event, e)} className={`absolute left-2 right-2 top-1 bottom-1 p-2 rounded-lg border-l-4 cursor-pointer hover:brightness-110 shadow-lg backdrop-blur-md transition-all ${styles.bg} ${styles.border.replace('border-', 'border-l-')}`}>
-                                          <div className="flex justify-between items-start">
-                                              <span className="font-bold text-white text-sm block truncate">{event.title}</span>
-                                              <span className="text-[10px] text-slate-400 font-mono">{format(parseISO(event.start), 'HH:mm')}</span>
+                                      <div key={event.id} onClick={(e) => handleEventClick(event, e)} 
+                                        className={`absolute left-4 right-4 top-2 bottom-2 p-6 rounded-3xl border-l-[6px] cursor-pointer hover:scale-[1.01] hover:brightness-110 shadow-2xl backdrop-blur-2xl transition-all flex flex-col justify-center ${styles.bg} ${styles.border.replace('border-', 'border-l-')}`}>
+                                          <div className="flex justify-between items-center">
+                                              <div className="flex items-center gap-5">
+                                                  <div className={`p-3.5 rounded-2xl bg-white/10 text-white shadow-xl ring-1 ring-white/10`}><styles.icon size={24} /></div>
+                                                  <div>
+                                                      <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] block mb-1">{styles.label}</span>
+                                                      <span className="font-bold text-white text-2xl leading-tight tracking-tight">{event.title}</span>
+                                                  </div>
+                                              </div>
+                                              <span className="text-sm text-slate-100 font-mono font-black bg-black/40 px-5 py-2 rounded-2xl border border-white/5 shadow-inner">{format(parseISO(event.start), 'HH:mm')}</span>
                                           </div>
                                       </div>
                                   )
@@ -157,44 +233,45 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
               </div>
           </div>
       )}
+      </div>
 
       {detailEvent && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in" onClick={() => {setDetailEvent(null); setSelectedEventId(null);}}>
-            <div className="bg-slate-900 border border-slate-700/50 rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in" onClick={() => {setDetailEvent(null); setSelectedEventId(null);}}>
+            <div className="bg-slate-900 border border-slate-700/50 rounded-[3rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
                 {(() => {
                     const styles = getCategoryStyles(detailEvent);
                     const client = clients.find(c => c.id === detailEvent.clientId);
                     return (
                         <>
-                        <div className={`h-32 bg-gradient-to-r ${styles.gradient} p-8 flex items-end relative`}>
-                            <button onClick={() => {setDetailEvent(null); setSelectedEventId(null);}} className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/20 p-2 rounded-full backdrop-blur-sm"><X size={20}/></button>
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-white/20 backdrop-blur-md rounded-xl text-white"><styles.icon size={24} /></div>
+                        <div className={`h-36 bg-gradient-to-r ${styles.gradient} p-8 flex items-end relative`}>
+                            <button onClick={() => {setDetailEvent(null); setSelectedEventId(null);}} className="absolute top-8 right-8 text-white/70 hover:text-white bg-black/30 p-2.5 rounded-full backdrop-blur-md transition-all hover:scale-110"><X size={22}/></button>
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 bg-white/20 backdrop-blur-md rounded-2xl text-white shadow-2xl ring-1 ring-white/20"><styles.icon size={32} /></div>
                                 <div>
-                                    <span className="text-[10px] uppercase font-black tracking-[0.2em] text-white/60">{styles.label}</span>
-                                    <h3 className="text-2xl font-bold text-white leading-tight">{detailEvent.title}</h3>
+                                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-white/60 mb-1 block">{styles.label}</span>
+                                    <h3 className="text-3xl font-black text-white leading-tight tracking-tight">{detailEvent.title}</h3>
                                 </div>
                             </div>
                         </div>
-                        <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar max-h-[60vh]">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-1 block">Data</label><div className="flex items-center gap-2 text-white font-semibold"><CalendarIcon size={16} className="text-blue-400" />{format(parseISO(detailEvent.start), "dd 'de' MMMM, yyyy", {locale: ptBR})}</div></div>
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-1 block">Horário</label><div className="flex items-center gap-2 text-white font-semibold"><Clock size={16} className="text-purple-400" />{format(parseISO(detailEvent.start), "HH:mm")} - {format(parseISO(detailEvent.end), "HH:mm")}</div></div>
+                        <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar max-h-[60vh]">
+                            <div className="grid grid-cols-2 gap-10">
+                                <div className="space-y-5">
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Data do Evento</label><div className="flex items-center gap-3 text-white font-bold text-lg"><CalendarIcon size={18} className="text-blue-400" />{format(parseISO(detailEvent.start), "dd 'de' MMMM, yyyy", {locale: ptBR})}</div></div>
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Horário Previsto</label><div className="flex items-center gap-3 text-white font-bold text-lg"><Clock size={18} className="text-purple-400" />{format(parseISO(detailEvent.start), "HH:mm")} - {format(parseISO(detailEvent.end), "HH:mm")}</div></div>
                                 </div>
-                                <div className="space-y-4">
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-1 block">Cliente</label><div className="flex items-center gap-2 text-white font-semibold truncate"><User size={16} className="text-pink-400" />{client ? client.name : 'Nenhum cliente'}</div></div>
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-1 block">Valor</label><div className="flex items-center gap-2 text-green-400 font-bold text-xl"><Euro size={18} />€ {detailEvent.agreedPrice?.toLocaleString('pt-PT')}</div></div>
+                                <div className="space-y-5">
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Cliente Responsável</label><div className="flex items-center gap-3 text-white font-bold text-lg truncate"><User size={18} className="text-pink-400" />{client ? client.name : 'Individual'}</div></div>
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl"><Euro size={20} />€ {detailEvent.agreedPrice?.toLocaleString('pt-PT')}</div></div>
                                 </div>
                             </div>
-                            <div className="bg-slate-800/40 border border-slate-700/30 rounded-2xl p-5 space-y-4">
-                                <div className="flex items-start gap-3"><MapPin size={18} className="text-red-400 mt-0.5" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-0.5">Localização</label><span className="text-slate-200 text-sm font-medium">{detailEvent.location || 'Local a definir'}</span></div></div>
-                                <div className="flex items-start gap-3"><Tag size={18} className="text-yellow-400 mt-0.5" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-0.5">Serviço</label><span className="text-slate-200 text-sm font-medium">{detailEvent.packName || 'Geral'}</span></div></div>
+                            <div className="bg-slate-800/30 border border-slate-700/30 rounded-[2rem] p-7 space-y-6 shadow-inner ring-1 ring-white/5">
+                                <div className="flex items-start gap-5"><MapPin size={22} className="text-red-400 mt-1" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Localização / Quinta</label><span className="text-slate-100 text-lg font-bold">{detailEvent.location || 'Local a definir'}</span></div></div>
+                                <div className="flex items-start gap-5"><Tag size={22} className="text-yellow-400 mt-1" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Serviço Contratado</label><span className="text-slate-100 text-lg font-bold">{detailEvent.packName || 'Geral'}</span></div></div>
                             </div>
                         </div>
-                        <div className="p-6 border-t border-slate-800/50 bg-slate-900/50 flex gap-3">
-                            <button onClick={() => handleDelete(detailEvent.id)} className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-900/20 text-slate-400 hover:text-red-400 py-3 rounded-xl transition-all border border-slate-700 hover:border-red-500/30 font-bold text-sm"><Trash2 size={18} /> Excluir</button>
-                            <button onClick={() => {setDetailEvent(null); setSelectedEventId(null);}} className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl transition-all font-bold text-sm shadow-lg">Fechar</button>
+                        <div className="p-10 border-t border-slate-800/50 bg-slate-900/50 flex gap-5">
+                            <button onClick={() => handleDelete(detailEvent.id)} className="flex-1 flex items-center justify-center gap-3 bg-slate-800 hover:bg-red-900/20 text-slate-400 hover:text-red-400 py-5 rounded-[1.5rem] transition-all border border-slate-700 hover:border-red-500/30 font-black text-xs uppercase tracking-widest"><Trash2 size={20} /> Excluir</button>
+                            <button onClick={() => {setDetailEvent(null); setSelectedEventId(null);}} className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02] active:scale-95 hover:brightness-110 text-white py-5 rounded-[1.5rem] transition-all font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-900/40">Confirmar</button>
                         </div>
                         </>
                     )
