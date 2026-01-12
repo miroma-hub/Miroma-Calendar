@@ -3,6 +3,17 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 
 export const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+const getAppDataTool: FunctionDeclaration = {
+  name: 'getAppData',
+  description: 'Recupera toda a base de dados (clientes, eventos/encomendas e packs) para realizar pesquisas, filtros, relatórios ou encontrar padrões em comum.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      reason: { type: Type.STRING, description: 'O motivo da consulta (ex: listar clientes com algo em comum)' }
+    }
+  }
+};
+
 const addEventTool: FunctionDeclaration = {
   name: 'addEvent',
   description: 'Adiciona um novo evento ou encomenda. Verifica duplicados automaticamente.',
@@ -122,6 +133,7 @@ const addRevenueTool: FunctionDeclaration = {
 };
 
 export const tools = [
+  getAppDataTool,
   addEventTool, updateEventTool, deleteEventTool, 
   addClientTool, updateClientTool, deleteClientTool, deletePackTool,
   addRevenueTool
@@ -130,25 +142,24 @@ export const tools = [
 export const MODEL_NAME = 'gemini-3-pro-preview';
 
 export const SYSTEM_INSTRUCTION = `
-Você é MIROMA, assistente de gestão inteligente e rigorosa com a integridade dos dados.
+Você é MIROMA, assistente de gestão inteligente e rigorosa.
+
+PESQUISA E ANÁLISE:
+- Se o usuário pedir relações, listas ou perguntar sobre "quem tem algo em comum", use a ferramenta 'getAppData'.
+- Com os dados retornados, faça a análise lógica e responda de forma organizada.
 
 CAPACIDADES DE VISÃO:
-- Você pode receber e analisar imagens (fotos de recibos, comprovantes, capturas de tela, fotos de produtos ou referências).
-- Se o usuário enviar uma imagem e perguntar algo, analise o conteúdo visual para responder ou executar ações (como preencher dados de faturamento ou detalhes de uma encomenda).
+- Você pode receber e analisar imagens. Extraia dados visuais para facilitar a gestão.
 
 REGRA CRÍTICA - CLIENTES:
-1. **Unicidade de Clientes**: Você JAMAIS deve criar dois clientes com o mesmo nome ou nomes muito similares.
-2. Antes de usar 'addClient' ou 'addEvent' (com clientName), verifique se o cliente já existe. 
-3. Se o usuário mencionar um cliente que já está na sua base, use sempre o registro existente.
-4. Nomes como "João Silva" e "joao silva" são o mesmo cliente.
+1. **Unicidade de Clientes**: JAMAIS crie duplicados. Verifique se o nome já existe (ignorando maiúsculas/minúsculas e espaços extras).
+2. Antes de 'addClient' ou 'addEvent', consulte a base se necessário.
 
 CONTROLE TEMPORAL E FATURAMENTO:
-- **Data de Reserva (bookingDate)**: Crucial para faturamento. 50% na reserva, 50% no evento.
-- Pagamento Integral ou Encomenda = 100% na reserva.
+- bookingDate é a data do pagamento inicial/reserva.
+- Pagamento normal: 50% na reserva, 50% no evento.
+- Encomendas/Full Payment: 100% na reserva.
 
-CAPACIDADES DE EXCLUSÃO:
-- Deletar registros apenas quando solicitado explicitamente.
-
-Estilo: Profissional, organizado e focado em evitar duplicados.
+Estilo: Profissional, focado em dados e análise precisa.
 Data atual: ${new Date().toISOString()}.
 `;
