@@ -16,6 +16,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
   const { events, clients, calendarDate, setCalendarDate, selectedEventId, setSelectedEventId, deleteEvent } = useApp();
   const [viewMode, setViewMode] = useState<ViewMode>('MONTH');
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,19 +48,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
       else if (viewMode === 'DAY') setCalendarDate(addDays(calendarDate, 1));
   };
 
-  // Implementação de Scroll-Zoom (Wheel Support)
+  // Implementação de Scroll-Zoom (Wheel Support) Contextual
   const handleWheel = useCallback((e: React.WheelEvent) => {
-      // Pequeno debounce natural para não saltar múltiplas vistas de uma vez
       if (Math.abs(e.deltaY) < 50) return;
 
-      if (e.deltaY < 0) { // Scroll Up = Zoom In
-          if (viewMode === 'YEAR') setViewMode('MONTH');
-          else if (viewMode === 'MONTH') setViewMode('DAY');
-      } else { // Scroll Down = Zoom Out
+      if (e.deltaY < 0) { // Scroll Up = Zoom In (Aprofundar)
+          if (viewMode === 'YEAR') {
+              if (hoveredDate) setCalendarDate(hoveredDate);
+              setViewMode('MONTH');
+          } else if (viewMode === 'MONTH') {
+              if (hoveredDate) setCalendarDate(hoveredDate);
+              setViewMode('DAY');
+          }
+      } else { // Scroll Down = Zoom Out (Afastar)
           if (viewMode === 'DAY') setViewMode('MONTH');
           else if (viewMode === 'MONTH') setViewMode('YEAR');
       }
-  }, [viewMode]);
+  }, [viewMode, hoveredDate, setCalendarDate]);
 
   const getEventsForDay = (day: Date) => events.filter(event => isSameDay(parseISO(event.start), day));
 
@@ -91,22 +96,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
     <div 
       ref={containerRef} 
       onWheel={handleWheel}
+      onMouseLeave={() => setHoveredDate(null)}
       className={`h-full flex flex-col ${isEmbedded ? 'p-4' : 'p-6'} overflow-hidden relative select-none`} 
       onClick={() => { setDetailEvent(null); setSelectedEventId(null); }}
     >
       <div className="flex justify-between items-center mb-6 z-10">
-        <h2 className={`font-black text-white capitalize ${isEmbedded ? 'text-2xl' : 'text-3xl'} gemini-gradient-text tracking-tighter`}>
+        <h2 className={`font-black text-white capitalize ${isEmbedded ? 'text-xl' : 'text-3xl'} gemini-gradient-text tracking-tighter`}>
           {viewMode === 'MONTH' ? format(calendarDate, 'MMMM yyyy', { locale: ptBR }) : viewMode === 'YEAR' ? format(calendarDate, 'yyyy', { locale: ptBR }) : format(calendarDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
         </h2>
         <div className="flex items-center gap-4">
             <div className="flex gap-1 bg-slate-800/40 rounded-xl p-1 border border-slate-700/30 backdrop-blur-md">
-                <button onClick={() => setViewMode('DAY')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'DAY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Dia"><Clock size={18}/></button>
-                <button onClick={() => setViewMode('MONTH')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'MONTH' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Mês"><ZoomIn size={18}/></button>
-                <button onClick={() => setViewMode('YEAR')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'YEAR' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Ano"><ZoomOut size={18}/></button>
+                <button onClick={() => setViewMode('DAY')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'DAY' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Dia"><Clock size={isEmbedded ? 14 : 18}/></button>
+                <button onClick={() => setViewMode('MONTH')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'MONTH' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Mês"><ZoomIn size={isEmbedded ? 14 : 18}/></button>
+                <button onClick={() => setViewMode('YEAR')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'YEAR' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`} title="Vista Ano"><ZoomOut size={isEmbedded ? 14 : 18}/></button>
             </div>
             <div className="flex gap-2">
-                <button onClick={prev} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300 transition-colors"><ChevronLeft size={24} /></button>
-                <button onClick={next} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300 transition-colors"><ChevronRight size={24} /></button>
+                <button onClick={prev} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300 transition-colors"><ChevronLeft size={isEmbedded ? 20 : 24} /></button>
+                <button onClick={next} className="p-2 hover:bg-slate-700/50 rounded-full text-slate-300 transition-colors"><ChevronRight size={isEmbedded ? 20 : 24} /></button>
             </div>
         </div>
       </div>
@@ -114,10 +120,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
       <div key={viewMode} className={`flex-1 overflow-hidden ${viewMode === 'YEAR' ? 'animate-zoom-out' : 'animate-zoom-in'}`}>
       {viewMode === 'MONTH' ? (
         <div className="h-full flex flex-col">
-            <div className="grid grid-cols-7 gap-2 mb-4 text-slate-500 font-black text-center text-[10px] uppercase tracking-[0.2em] border-b border-slate-800/30 pb-2">
+            <div className="grid grid-cols-7 gap-1 mb-4 text-slate-500 font-black text-center text-[9px] uppercase tracking-[0.2em] border-b border-slate-800/30 pb-2">
                 {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => <div key={day}>{day}</div>)}
             </div>
-            <div className="grid grid-cols-7 gap-2 flex-1 overflow-y-auto custom-scrollbar pr-1">
+            <div className="grid grid-cols-7 gap-1 flex-1 overflow-y-auto custom-scrollbar pr-1">
                 {daysInGrid.map((day) => {
                 const dayEvents = getEventsForDay(day);
                 const isCurrentDay = isToday(day);
@@ -125,39 +131,41 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                 const hasEvents = dayEvents.length > 0;
                 
                 return (
-                    <div key={day.toISOString()} onClick={(e) => { e.stopPropagation(); setCalendarDate(day); setViewMode('DAY'); }}
-                    className={`min-h-[105px] border rounded-2xl p-2 flex flex-col transition-all cursor-zoom-in group relative
+                    <div key={day.toISOString()} 
+                    onMouseEnter={() => setHoveredDate(day)}
+                    onClick={(e) => { e.stopPropagation(); setCalendarDate(day); setViewMode('DAY'); }}
+                    className={`min-h-[85px] border rounded-xl p-1.5 flex flex-col transition-all cursor-zoom-in group relative
                       ${isThisMonth ? 'bg-slate-800/10 border-slate-700/30' : 'bg-transparent border-transparent opacity-10 pointer-events-none'} 
-                      ${isCurrentDay ? 'ring-2 ring-blue-500/50 bg-slate-800/40 shadow-blue-500/20 shadow-xl' : ''}
+                      ${isCurrentDay ? 'ring-2 ring-blue-500/50 bg-slate-800/40 shadow-blue-500/20 shadow-xl' : hoveredDate && isSameDay(day, hoveredDate) ? 'border-blue-500/50 bg-slate-800/20' : ''}
                       ${hasEvents && isThisMonth ? 'hover:border-blue-500/60 hover:bg-slate-800/30 shadow-blue-500/5 shadow-inner' : 'hover:bg-slate-800/20'}
                     `}>
                     
                     {hasEvents && isThisMonth && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent rounded-2xl pointer-events-none"></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent rounded-xl pointer-events-none"></div>
                     )}
 
-                    <div className="flex justify-between items-center mb-1.5 relative z-10">
-                        <span className={`text-xs font-black ${isCurrentDay ? 'text-blue-400' : 'text-slate-500'}`}>{format(day, 'd')}</span>
+                    <div className="flex justify-between items-center mb-1 relative z-10">
+                        <span className={`text-[10px] font-black ${isCurrentDay ? 'text-blue-400' : 'text-slate-500'}`}>{format(day, 'd')}</span>
                         {hasEvents && isThisMonth && (
                             <div className="flex gap-0.5">
-                                {dayEvents.slice(0, 3).map(ev => <div key={ev.id} className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>)}
+                                {dayEvents.slice(0, 2).map(ev => <div key={ev.id} className="w-1 h-1 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></div>)}
                             </div>
                         )}
                     </div>
                     
-                    <div className="space-y-1 overflow-hidden flex-1 relative z-10">
+                    <div className="space-y-0.5 overflow-hidden flex-1 relative z-10">
                         {dayEvents.slice(0, 3).map(event => {
                             const styles = getCategoryStyles(event);
                             return (
                                 <div key={event.id} onClick={(e) => handleEventClick(event, e)} 
-                                  className={`text-[9px] p-1.5 rounded-lg border-l-[3px] truncate font-bold shadow-sm transition-all hover:translate-x-1 hover:brightness-125 ${styles.bg} ${styles.border.replace('border-', 'border-l-')} text-white flex items-center gap-1.5`}>
-                                    <styles.icon size={8} />
+                                  className={`text-[8px] p-1 rounded-md border-l-[2px] truncate font-bold shadow-sm transition-all hover:translate-x-1 hover:brightness-125 ${styles.bg} ${styles.border.replace('border-', 'border-l-')} text-white flex items-center gap-1`}>
+                                    <styles.icon size={7} />
                                     {event.title}
                                 </div>
                             )
                         })}
                         {dayEvents.length > 3 && (
-                            <div className="text-[8px] text-center font-black text-slate-500 uppercase tracking-tighter mt-1 bg-slate-800/50 py-0.5 rounded-full backdrop-blur-sm border border-slate-700/20">
+                            <div className="text-[7px] text-center font-black text-slate-500 uppercase tracking-tighter mt-0.5 bg-slate-800/50 py-0.5 rounded-full border border-slate-700/20">
                                 + {dayEvents.length - 3} itens
                             </div>
                         )}
@@ -175,16 +183,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                   const intensity = Math.min(monthEvents.length * 12, 100);
                   
                   return (
-                    <div key={month.toISOString()} onClick={(e) => { e.stopPropagation(); setCalendarDate(month); setViewMode('MONTH'); }} 
+                    <div key={month.toISOString()} 
+                      onMouseEnter={() => setHoveredDate(month)}
+                      onClick={(e) => { e.stopPropagation(); setCalendarDate(month); setViewMode('MONTH'); }} 
                       className={`border rounded-3xl p-6 flex flex-col justify-between transition-all hover:scale-[1.03] cursor-zoom-in relative overflow-hidden group
                         ${isCurrentMonth ? 'bg-blue-600/10 border-blue-500/40 ring-1 ring-blue-500/20 shadow-2xl' : 'bg-slate-800/20 border-slate-700/30 hover:border-blue-500/50 hover:bg-slate-800/30'}
+                        ${hoveredDate && isSameMonth(month, hoveredDate) ? 'border-blue-500/60 ring-1 ring-blue-500/20' : ''}
                       `}>
                         <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-125 group-hover:bg-blue-500/10"></div>
                         
                         <div>
                             <h3 className="text-xl font-black text-white mb-2 capitalize tracking-tight group-hover:text-blue-400 transition-colors">{format(month, 'MMMM', {locale: ptBR})}</h3>
                             <div className="flex items-center gap-2 mt-4">
-                                <div className="flex-1 h-2.5 bg-slate-900/60 rounded-full overflow-hidden shadow-inner border border-slate-800/50">
+                                <div className="flex-1 h-2 bg-slate-900/60 rounded-full overflow-hidden shadow-inner border border-slate-800/50">
                                     <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-1000 ease-out" style={{ width: `${intensity}%` }}></div>
                                 </div>
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{monthEvents.length}</span>
@@ -219,7 +230,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                                                   <div className={`p-3.5 rounded-2xl bg-white/10 text-white shadow-xl ring-1 ring-white/10`}><styles.icon size={24} /></div>
                                                   <div>
                                                       <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] block mb-1">{styles.label}</span>
-                                                      <span className="font-bold text-white text-2xl leading-tight tracking-tight">{event.title}</span>
+                                                      <span className="font-bold text-white text-xl leading-tight tracking-tight">{event.title}</span>
                                                   </div>
                                               </div>
                                               <span className="text-sm text-slate-100 font-mono font-black bg-black/40 px-5 py-2 rounded-2xl border border-white/5 shadow-inner">{format(parseISO(event.start), 'HH:mm')}</span>
@@ -261,7 +272,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                                 </div>
                                 <div className="space-y-5">
                                     <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Cliente Responsável</label><div className="flex items-center gap-3 text-white font-bold text-lg truncate"><User size={18} className="text-pink-400" />{client ? client.name : 'Individual'}</div></div>
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl"><Euro size={20} /> {detailEvent.agreedPrice?.toLocaleString('pt-PT')} €</div></div>
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl"><Euro size={20} /> {detailEvent.agreedPrice?.toLocaleString('pt-PT')}</div></div>
                                 </div>
                             </div>
                             <div className="bg-slate-800/30 border border-slate-700/30 rounded-[2rem] p-7 space-y-6 shadow-inner ring-1 ring-white/5">
@@ -279,8 +290,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                             </div>
                         </div>
                         <div className="p-10 border-t border-slate-800/50 bg-slate-900/50 flex gap-5">
-                            <button onClick={() => handleDelete(detailEvent.id)} className="flex-1 flex items-center justify-center gap-3 bg-slate-800 hover:bg-red-900/20 text-slate-400 hover:text-red-400 py-5 rounded-[1.5rem] transition-all border border-slate-700 hover:border-red-500/30 font-black text-xs uppercase tracking-widest"><Trash2 size={20} /> Excluir</button>
-                            <button onClick={() => {setDetailEvent(null); setSelectedEventId(null);}} className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02] active:scale-95 hover:brightness-110 text-white py-5 rounded-[1.5rem] transition-all font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-900/40">Confirmar</button>
+                            {!isEmbedded && (
+                                <button onClick={() => handleDelete(detailEvent.id)} className="flex-1 flex items-center justify-center gap-3 bg-slate-800 hover:bg-red-900/20 text-slate-400 hover:text-red-400 py-5 rounded-[1.5rem] transition-all border border-slate-700 hover:border-red-500/30 font-black text-xs uppercase tracking-widest"><Trash2 size={20} /> Excluir</button>
+                            )}
+                            <button onClick={() => {setDetailEvent(null); setSelectedEventId(null);}} className={`${isEmbedded ? 'flex-1' : 'flex-[2]'} bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02] active:scale-95 hover:brightness-110 text-white py-5 rounded-[1.5rem] transition-all font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-900/40`}>Confirmar</button>
                         </div>
                         </>
                     )
