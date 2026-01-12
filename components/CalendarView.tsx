@@ -261,12 +261,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                                 </div>
                                 <div className="space-y-5">
                                     <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Cliente Responsável</label><div className="flex items-center gap-3 text-white font-bold text-lg truncate"><User size={18} className="text-pink-400" />{client ? client.name : 'Individual'}</div></div>
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl"><Euro size={20} />€ {detailEvent.agreedPrice?.toLocaleString('pt-PT')}</div></div>
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl"><Euro size={20} /> {detailEvent.agreedPrice?.toLocaleString('pt-PT')} €</div></div>
                                 </div>
                             </div>
                             <div className="bg-slate-800/30 border border-slate-700/30 rounded-[2rem] p-7 space-y-6 shadow-inner ring-1 ring-white/5">
                                 <div className="flex items-start gap-5"><MapPin size={22} className="text-red-400 mt-1" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Localização / Quinta</label><span className="text-slate-100 text-lg font-bold">{detailEvent.location || 'Local a definir'}</span></div></div>
                                 <div className="flex items-start gap-5"><Tag size={22} className="text-yellow-400 mt-1" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Serviço Contratado</label><span className="text-slate-100 text-lg font-bold">{detailEvent.packName || 'Geral'}</span></div></div>
+                                {client?.notes && (
+                                  <div className="flex items-start gap-5 pt-4 border-t border-slate-700/30">
+                                      <Info size={22} className="text-blue-400 mt-1" />
+                                      <div>
+                                          <label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Notas do Cliente</label>
+                                          <span className="text-slate-300 text-sm leading-relaxed">{client.notes}</span>
+                                      </div>
+                                  </div>
+                                )}
                             </div>
                         </div>
                         <div className="p-10 border-t border-slate-800/50 bg-slate-900/50 flex gap-5">
