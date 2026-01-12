@@ -47,7 +47,7 @@ const DashboardView: React.FC = () => {
                             </div>
                             <div className="text-right">
                                 <span className="font-mono text-blue-400 font-bold">
-                                    {type === 'billing' ? `€ ${item.amount.toLocaleString('pt-PT')}` : 'Pendente'}
+                                    {type === 'billing' ? `${item.amount.toLocaleString('pt-PT')} €` : 'Pendente'}
                                 </span>
                             </div>
                         </div>
@@ -57,7 +57,7 @@ const DashboardView: React.FC = () => {
             {type === 'billing' && items.length > 0 && (
                 <div className="p-4 bg-slate-800/30 border-t border-slate-700 flex justify-between items-center">
                     <span className="text-slate-400 text-sm">Total do Mês</span>
-                    <span className="text-xl font-bold text-green-400">€ {items.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('pt-PT')}</span>
+                    <span className="text-xl font-bold text-green-400">{items.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('pt-PT')} €</span>
                 </div>
             )}
             <button onClick={() => { setCurrentView(type === 'billing' ? 'billing' : 'orders'); onClose(); }} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2">
@@ -72,36 +72,36 @@ const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 flex-shrink-0">
         {/* Card Faturamento */}
         <button onClick={() => setActiveSummary('billing')} className="bg-slate-800/20 backdrop-blur-md border border-slate-700/30 p-4 rounded-xl flex items-center gap-3 hover:bg-slate-800/40 hover:border-green-500/30 transition-all group text-left">
-           <div className="bg-green-500/10 p-2 rounded-lg text-green-400 group-hover:bg-green-500/20 transition-colors"><Euro /></div>
+           <div className="bg-green-500/10 p-2 rounded-lg text-green-400 group-hover:bg-green-500/20 transition-colors"><Euro size={18} /></div>
            <div className="flex-1">
-              <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Faturamento (Mês)</p>
-              <p className="text-xl font-bold text-white">€ {monthlyRevenue.toLocaleString('pt-PT')}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Faturamento (Mês)</p>
+              <p className="text-lg font-bold text-white">{monthlyRevenue.toLocaleString('pt-PT')} €</p>
            </div>
         </button>
 
         {/* Card Encomendas */}
         <button onClick={() => setActiveSummary('orders')} className="bg-slate-800/20 backdrop-blur-md border border-slate-700/30 p-4 rounded-xl flex items-center gap-3 hover:bg-slate-800/40 hover:border-orange-500/30 transition-all group text-left">
-           <div className="bg-orange-500/10 p-2 rounded-lg text-orange-400 group-hover:bg-orange-500/20 transition-colors"><Package /></div>
+           <div className="bg-orange-500/10 p-2 rounded-lg text-orange-400 group-hover:bg-orange-500/20 transition-colors"><Package size={18} /></div>
            <div className="flex-1">
-              <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Encomendas Ativas</p>
-              <p className="text-xl font-bold text-white">{pendingOrders.length}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Encomendas Ativas</p>
+              <p className="text-lg font-bold text-white">{pendingOrders.length}</p>
            </div>
         </button>
 
         {/* Card Eventos Totais */}
          <button onClick={() => setCurrentView('events_view')} className="bg-slate-800/20 backdrop-blur-md border border-slate-700/30 p-4 rounded-xl flex items-center gap-3 hover:bg-slate-800/40 hover:border-blue-500/30 transition-all group text-left">
-           <div className="bg-blue-500/10 p-2 rounded-lg text-blue-400 group-hover:bg-blue-500/20 transition-colors"><CalendarIcon /></div>
+           <div className="bg-blue-500/10 p-2 rounded-lg text-blue-400 group-hover:bg-blue-500/20 transition-colors"><CalendarIcon size={18} /></div>
            <div className="flex-1">
-              <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Eventos Totais</p>
-              <p className="text-xl font-bold text-white">{events.length}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Eventos Totais</p>
+              <p className="text-lg font-bold text-white">{events.length}</p>
            </div>
         </button>
 
         {/* Card Próximo Evento */}
         <button onClick={handleNextEventClick} className="bg-slate-800/20 backdrop-blur-md border border-slate-700/30 p-4 rounded-xl flex items-center gap-3 hover:bg-slate-800/40 hover:border-purple-500/30 transition-all group text-left">
-           <div className="bg-purple-500/10 p-2 rounded-lg text-purple-400 group-hover:bg-purple-500/20 transition-colors"><Clock /></div>
+           <div className="bg-purple-500/10 p-2 rounded-lg text-purple-400 group-hover:bg-purple-500/20 transition-colors"><Clock size={18} /></div>
            <div className="flex-1 overflow-hidden">
-              <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Próximo Evento</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-0.5">Próximo Evento</p>
               <p className="text-sm font-semibold text-white truncate">
                   {nextEvent?.title || 'Nenhum'}
               </p>
