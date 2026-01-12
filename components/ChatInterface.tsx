@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon } from 'lucide-react';
+import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon, FileText, Paperclip } from 'lucide-react';
 import { Content, Part } from '@google/genai';
 import { ChatMessage, EventType, CalendarEvent, Client, Pack } from '../types';
 import { ai, MODEL_NAME, SYSTEM_INSTRUCTION, tools } from '../services/gemini';
@@ -37,14 +37,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     {
       id: '0',
       role: 'model',
-      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua agenda e faturamento hoje?',
+      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua agenda e faturamento hoje? Agora também posso analisar seus documentos e PDFs!',
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [attachment, setAttachment] = useState<{ data: string; mimeType: string } | null>(null);
+  const [attachment, setAttachment] = useState<{ data: string; mimeType: string; name: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,7 +104,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64Data = (reader.result as string).split(',')[1];
-        setAttachment({ data: base64Data, mimeType: file.type });
+        setAttachment({ 
+          data: base64Data, 
+          mimeType: file.type || 'application/octet-stream', 
+          name: file.name 
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -275,7 +279,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     if ((!input.trim() && !attachment) || isProcessing) return;
     if (isListening) { setIsListening(false); if (recognitionRef.current) recognitionRef.current.stop(); }
 
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: new Date() };
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input || (attachment ? `Enviou um arquivo: ${attachment.name}` : ''), timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     
     const currentInput = input;
@@ -297,7 +301,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
         history: history
       });
 
-      let messageParts: (string | Part)[] = [currentInput || "Analise esta imagem"];
+      let messageParts: (string | Part)[] = [currentInput || (currentAttachment ? "Analise este arquivo anexado e ajude-me a gerenciar meus compromissos ou dados com base nele." : "Olá")];
       if (currentAttachment) {
         messageParts.push({
           inlineData: {
@@ -324,45 +328,88 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Concluído.", timestamp: new Date() }]);
     } catch (e) {
       console.error(e);
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro na conexão ou processamento.", timestamp: new Date() }]);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro na conexão ou processamento. Verifique se o arquivo não é muito grande.", timestamp: new Date() }]);
     } finally { setIsProcessing(false); }
   };
 
   if (!isOpen) return null;
 
+  const isImage = (mime: string) => mime.startsWith('image/');
+
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col animate-slide-in-right">
       <div className="p-4 border-b border-slate-700 flex justify-between items-center">
         <div className="flex items-center gap-2"><Sparkles className="text-blue-400" size={20} /><h2 className="text-lg font-bold gemini-gradient-text">MIROMA AI</h2></div>
-        <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
+        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={24} /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] rounded-2xl p-4 ${msg.role === 'user' ? 'bg-slate-700' : 'bg-slate-800 border border-slate-700'}`}>
-              <div className="prose prose-invert prose-sm"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
+              <div className="prose prose-invert prose-sm break-words"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
             </div>
           </div>
         ))}
-        {isProcessing && <div className="text-xs text-slate-500 flex items-center gap-2"><Loader2 className="animate-spin" size={14}/> Pensando...</div>}
+        {isProcessing && <div className="text-xs text-slate-500 flex items-center gap-2"><Loader2 className="animate-spin" size={14}/> Analisando dados...</div>}
         <div ref={messagesEndRef} />
       </div>
 
       <div className="p-4 bg-slate-900 border-t border-slate-700">
         {attachment && (
-          <div className="mb-2 relative inline-block">
-             <img src={`data:${attachment.mimeType};base64,${attachment.data}`} className="h-16 w-16 object-cover rounded-lg border border-blue-500 shadow-md" />
-             <button onClick={() => setAttachment(null)} className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><X size={12}/></button>
+          <div className="mb-3 relative inline-flex items-center gap-3 bg-slate-800 p-3 rounded-xl border border-blue-500/30 shadow-lg animate-fade-in">
+             {isImage(attachment.mimeType) ? (
+               <img src={`data:${attachment.mimeType};base64,${attachment.data}`} className="h-14 w-14 object-cover rounded-lg border border-slate-700" />
+             ) : (
+               <div className="h-14 w-14 bg-slate-700 rounded-lg flex items-center justify-center text-blue-400">
+                  <FileText size={24} />
+               </div>
+             )}
+             <div className="flex flex-col max-w-[200px]">
+                <span className="text-xs font-bold text-white truncate">{attachment.name}</span>
+                <span className="text-[10px] text-slate-500 uppercase">{attachment.mimeType.split('/')[1]}</span>
+             </div>
+             <button onClick={() => setAttachment(null)} className="ml-2 bg-slate-700 hover:bg-red-600 text-white rounded-full p-1 transition-colors"><X size={14}/></button>
           </div>
         )}
         <div className="gemini-border p-[1px] rounded-3xl">
           <div className="bg-slate-900 rounded-3xl flex items-center px-2 py-1">
-            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={isListening ? "Ouvindo..." : "Escreva ou fale..."} className="flex-1 bg-transparent border-none focus:ring-0 text-white px-3 py-3" />
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-blue-400 transition-colors"><ImageIcon size={20} /></button>
-            <button onClick={toggleListening} className={`p-2 rounded-full ${isListening ? 'bg-blue-600 animate-pulse' : 'text-slate-400'}`}><Mic size={20} /></button>
-            <button onClick={handleSend} className="p-2 text-blue-400"><Send size={20} /></button>
+            <input 
+              type="text" 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()} 
+              placeholder={isListening ? "Ouvindo sua voz..." : "Anexe um arquivo ou escreva..."} 
+              className="flex-1 bg-transparent border-none focus:ring-0 text-white px-3 py-3 text-sm" 
+            />
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              accept="image/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+              className="hidden" 
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              className="p-2 text-slate-400 hover:text-blue-400 transition-colors"
+              title="Anexar arquivo ou imagem"
+            >
+              <Paperclip size={20} />
+            </button>
+            <button 
+              onClick={toggleListening} 
+              className={`p-2 rounded-full transition-all ${isListening ? 'bg-blue-600 animate-pulse text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              title="Falar com MIROMA"
+            >
+              <Mic size={20} />
+            </button>
+            <button 
+              onClick={handleSend} 
+              className={`p-2 transition-colors ${input.trim() || attachment ? 'text-blue-400 hover:text-blue-300' : 'text-slate-600'}`}
+              disabled={!input.trim() && !attachment}
+            >
+              <Send size={20} />
+            </button>
           </div>
         </div>
       </div>
