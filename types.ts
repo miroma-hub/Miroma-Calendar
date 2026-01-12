@@ -4,6 +4,7 @@ export interface Client {
   name: string;
   contact: string;
   notes: string;
+  conversationHistory?: string; // Novo campo para contexto da AI
 }
 
 export enum EventType {
