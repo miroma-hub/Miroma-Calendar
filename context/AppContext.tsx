@@ -1,12 +1,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CalendarEvent, Client, EventType, Pack, TelegramConfig, ViewState } from '../types';
+import { CalendarEvent, Client, EventType, Pack, TelegramConfig, ViewState, Expense } from '../types';
 import { isSameMonth, parseISO } from 'date-fns';
 
 interface AppContextType {
   events: CalendarEvent[];
   clients: Client[];
   packs: Pack[];
+  expenses: Expense[]; // Added expenses state
   telegramConfig: TelegramConfig;
   currentView: ViewState;
   calendarDate: Date;
@@ -23,8 +24,13 @@ interface AppContextType {
   addPack: (pack: Omit<Pack, 'id'>) => Pack;
   updatePack: (id: string, updates: Partial<Pack>) => void;
   deletePack: (id: string) => void;
+  // Expense management methods
+  addExpense: (expense: Omit<Expense, 'id'>) => Expense;
+  deleteExpense: (id: string) => void;
   updateTelegramConfig: (config: TelegramConfig) => void;
   calculateMonthlyRevenue: (date: Date) => number;
+  calculateMonthlyExpenses: (date: Date) => number; // Added monthly expense calculation
+  getMonthlyIVA: (date: Date) => number; // Added IVA calculation
   getClientRevenue: (clientId: string) => number;
   sendTelegramMessage: (text: string) => Promise<void>;
   resetData: () => void;
@@ -53,6 +59,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Initialize expenses from localStorage
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    const saved = localStorage.getItem('miroma_expenses');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(() => {
     const saved = localStorage.getItem('miroma_telegram');
     return saved ? JSON.parse(saved) : { botToken: '', chatId: '', enabled: false };
@@ -61,6 +73,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { localStorage.setItem('miroma_events', JSON.stringify(events)); }, [events]);
   useEffect(() => { localStorage.setItem('miroma_clients', JSON.stringify(clients)); }, [clients]);
   useEffect(() => { localStorage.setItem('miroma_packs', JSON.stringify(packs)); }, [packs]);
+  useEffect(() => { localStorage.setItem('miroma_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('miroma_telegram', JSON.stringify(telegramConfig)); }, [telegramConfig]);
 
   const sendTelegramMessage = async (text: string) => {
@@ -122,12 +135,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPacks(prev => prev.filter(p => p.id !== id));
   };
 
+  // Add a new expense record
+  const addExpense = (expenseData: Omit<Expense, 'id'>) => {
+    const newExpense: Expense = {
+      ...expenseData,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    setExpenses(prev => [...prev, newExpense]);
+    return newExpense;
+  };
+
+  // Delete an expense record
+  const deleteExpense = (id: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
+  };
+
   const updateTelegramConfig = (config: TelegramConfig) => {
     setTelegramConfig(config);
   };
 
   const resetData = () => {
-      setEvents([]); setClients([]); setPacks([]); localStorage.clear();
+      setEvents([]); setClients([]); setPacks([]); setExpenses([]); localStorage.clear();
   };
 
   const importBackup = (data: any): boolean => {
@@ -135,6 +163,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (data.events) setEvents(data.events);
           if (data.clients) setClients(data.clients);
           if (data.packs) setPacks(data.packs);
+          if (data.expenses) setExpenses(data.expenses);
           if (data.telegramConfig) setTelegramConfig(data.telegramConfig);
           return true;
       } catch (e) { return false; }
@@ -158,6 +187,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return total;
   };
 
+  // Calculate monthly IVA (tax) based on revenue
+  const getMonthlyIVA = (date: Date) => {
+    return calculateMonthlyRevenue(date) * 0.06;
+  };
+
+  // Calculate total monthly expenses including fixed and manual costs
+  const calculateMonthlyExpenses = (date: Date) => {
+    const iva = getMonthlyIVA(date);
+    // Base fixed costs defined by operational model from ExpensesView.tsx
+    const fixedSum = 3000 + 307.5 + 1042.5 + 345 + 133.86 + 18.7 + iva;
+    
+    const manual = expenses
+      .filter(e => isSameMonth(parseISO(e.date), date))
+      .reduce((acc, curr) => acc + curr.amount, 0);
+      
+    return fixedSum + manual;
+  };
+
   const getClientRevenue = (clientId: string) => {
     return events
       .filter(e => e.clientId === clientId && e.agreedPrice)
@@ -166,12 +213,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
-      events, clients, packs, telegramConfig, currentView, calendarDate, selectedEventId,
+      events, clients, packs, expenses, telegramConfig, currentView, calendarDate, selectedEventId,
       setCurrentView, setCalendarDate, setSelectedEventId,
       addEvent, updateEvent, deleteEvent, 
       addClient, updateClient, deleteClient,
       addPack, updatePack, deletePack,
-      updateTelegramConfig, calculateMonthlyRevenue,
+      addExpense, deleteExpense,
+      updateTelegramConfig, calculateMonthlyRevenue, calculateMonthlyExpenses, getMonthlyIVA,
       getClientRevenue, sendTelegramMessage, resetData, importBackup
     }}>
       {children}
