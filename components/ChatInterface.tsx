@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon, FileText, Paperclip } from 'lucide-react';
+import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon, FileText, Paperclip, Zap } from 'lucide-react';
 import { Content, Part } from '@google/genai';
 import { ChatMessage, EventType, CalendarEvent, Client, Pack } from '../types';
-import { ai, MODEL_NAME, SYSTEM_INSTRUCTION, tools } from '../services/gemini';
+import { ai, MODEL_NAME_PRO, MODEL_NAME_FLASH, SYSTEM_INSTRUCTION, tools } from '../services/gemini';
 import { useApp } from '../context/AppContext';
 import ReactMarkdown from 'react-markdown';
 import { isSameDay, parseISO } from 'date-fns';
@@ -37,13 +37,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     {
       id: '0',
       role: 'model',
-      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua agenda e faturamento hoje? Agora posso ler os históricos de conversas com seus clientes para te aconselhar melhor!',
+      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua agenda e faturamento hoje? Estou conectada aos modelos Pro e Flash para garantir que nunca fiquemos offline.',
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isFlashFallback, setIsFlashFallback] = useState(false);
   const [attachment, setAttachment] = useState<{ data: string; mimeType: string; name: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -205,7 +206,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
             break;
         }
 
-        // ... outas ferramentas permanecem iguais ...
         case 'updateEvent': {
             const search = args.searchTitle.trim().toLowerCase();
             const eventToUpdate = currentEventsRef.current.find(e => e.title.toLowerCase().trim().includes(search));
@@ -287,23 +287,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     setInput('');
     setAttachment(null);
     setIsProcessing(true);
+    setIsFlashFallback(false);
 
-    try {
-      const history: Content[] = messages.map(m => ({
-        role: m.role === 'model' ? 'model' : 'user',
-        parts: [{ text: m.text || ' ' }]
-      }));
+    const history: Content[] = messages.map(m => ({
+      role: m.role === 'model' ? 'model' : 'user',
+      parts: [{ text: m.text || ' ' }]
+    }));
 
+    const messageParts: (string | Part)[] = [currentInput || (currentAttachment ? "Analise este arquivo e considere os históricos dos clientes na base de dados." : "Olá")];
+    if (currentAttachment) {
+      messageParts.push({ inlineData: { data: currentAttachment.data, mimeType: currentAttachment.mimeType } });
+    }
+
+    // Função interna para processar a mensagem com um modelo específico
+    const processWithModel = async (modelName: string) => {
       const chat = ai.chats.create({
-        model: MODEL_NAME,
+        model: modelName,
         config: { systemInstruction: SYSTEM_INSTRUCTION, tools: [{ functionDeclarations: tools }] },
         history: history
       });
-
-      let messageParts: (string | Part)[] = [currentInput || (currentAttachment ? "Analise este arquivo e considere os históricos dos clientes na base de dados." : "Olá")];
-      if (currentAttachment) {
-        messageParts.push({ inlineData: { data: currentAttachment.data, mimeType: currentAttachment.mimeType } });
-      }
 
       let response = await chat.sendMessage({ message: messageParts as any });
       let toolCalls = response.functionCalls;
@@ -318,11 +320,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
         response = nextStep;
         toolCalls = response.functionCalls;
       }
+      return response;
+    };
 
+    try {
+      // Tentativa 1: Gemini Pro
+      const response = await processWithModel(MODEL_NAME_PRO);
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Pronto.", timestamp: new Date() }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro ao processar. Tente novamente.", timestamp: new Date() }]);
-    } finally { setIsProcessing(false); }
+    } catch (proError: any) {
+      console.warn("Gemini Pro falhou (possível limite de taxa). Tentando Gemini Flash...", proError);
+      setIsFlashFallback(true);
+      
+      try {
+        // Tentativa 2: Gemini Flash (Failover)
+        const response = await processWithModel(MODEL_NAME_FLASH);
+        setMessages(prev => [...prev, { 
+          id: Date.now().toString(), 
+          role: 'model', 
+          text: response.text || "Pronto. (Processado via Flash devido a limites no modelo Pro)", 
+          timestamp: new Date() 
+        }]);
+      } catch (flashError: any) {
+        console.error("Gemini Flash também falhou:", flashError);
+        setMessages(prev => [...prev, { 
+          id: Date.now().toString(), 
+          role: 'model', 
+          text: `Erro crítico de processamento: ${flashError.message || 'Verifique sua conexão ou cota da API.'}`, 
+          timestamp: new Date() 
+        }]);
+      }
+    } finally { 
+      setIsProcessing(false); 
+      setIsFlashFallback(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -342,7 +372,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
             </div>
           </div>
         ))}
-        {isProcessing && <div className="text-xs text-slate-500 flex items-center gap-2 px-2"><Loader2 className="animate-spin" size={14}/> Consultando memória e registros...</div>}
+        {isProcessing && (
+            <div className="text-xs text-slate-500 flex items-center gap-2 px-2 animate-pulse">
+                <Loader2 className="animate-spin" size={14}/> 
+                {isFlashFallback ? (
+                    <span className="flex items-center gap-1 text-orange-400"><Zap size={10}/> Limite Pro atingido. Usando modo Flash...</span>
+                ) : (
+                    "Consultando memória e registros..."
+                )}
+            </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
