@@ -13,6 +13,28 @@ export enum EventType {
   EVENT = 'Evento',    
 }
 
+// Added ExpenseCategory for financial tracking
+export enum ExpenseCategory {
+  MATERIAL = 'Material',
+  TRAVEL = 'Deslocação',
+  EMPLOYEE = 'Funcionário',
+  SALARY = 'Salário',
+  ACCOUNTANT = 'Contabilista',
+  TAX = 'Impostos',
+  SERVICE = 'Serviços',
+  OTHER = 'Outros'
+}
+
+// Added Expense interface for financial tracking
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  category: ExpenseCategory;
+  isRecurring: boolean;
+}
+
 export interface Pack {
   id: string;
   name: string;
@@ -37,7 +59,7 @@ export interface CalendarEvent {
   // Financial
   packName?: string; 
   agreedPrice?: number; 
-  isFullPayment?: boolean; // Nova flag para pagamento 100%
+  isFullPayment?: boolean; 
   
   // Order specific
   isDone?: boolean;
