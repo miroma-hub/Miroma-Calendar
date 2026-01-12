@@ -1,3 +1,4 @@
+
 {
   "name": "MIROMA AI Assistant",
   "short_name": "MIROMA",
@@ -8,14 +9,10 @@
   "description": "Assistente inteligente de gestão com integração Gemini AI.",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/4712/4712038.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/4712/4712038.png",
+      "src": "bc.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
