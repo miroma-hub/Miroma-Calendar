@@ -6,27 +6,27 @@
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
-  "description": "Assistente inteligente de gestão com integração Gemini AI.",
+  "description": "Assistente inteligente de gestão.",
   "icons": [
     {
-      "src": "miroma.ico",
+      "src": "/miroma.ico",
       "sizes": "16x16 24x24 32x32 48x48 64x64",
       "type": "image/x-icon"
     },
     {
-      "src": "miroma.png",
+      "src": "/miroma.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "miroma.png",
+      "src": "/miroma.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "miroma.png",
+      "src": "/miroma.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
