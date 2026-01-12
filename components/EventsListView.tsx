@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { EventType, CalendarEvent } from '../types';
-import { MapPin, Calendar as CalendarIcon, Clock, User, PartyPopper, Plus, X, Search, Briefcase, Heart, Edit3, Tag } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Clock, User, PartyPopper, Plus, X, Search, Briefcase, Heart, Edit3, Tag, Euro } from 'lucide-react';
 import { format, parseISO, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -24,7 +24,6 @@ const EventsListView: React.FC = () => {
   const pastEvents = eventItems.filter(e => !isAfter(parseISO(e.end), new Date()));
 
   const handleSave = (data: Partial<CalendarEvent>) => {
-      // Use type check to differentiate between 'new' string literal and CalendarEvent
       if (typeof selectedEvent === 'string' && selectedEvent === 'new') {
           addEvent({ ...data as any, bookingDate: new Date().toISOString() });
       } else if (selectedEvent && typeof selectedEvent !== 'string') {
@@ -50,10 +49,10 @@ const EventsListView: React.FC = () => {
   };
 
   const getIconByCategory = (category: string) => {
-      if (category === 'Reunião') return <Briefcase size={16} className="text-blue-400" />;
-      if (category === 'Pessoal') return <Heart size={16} className="text-red-400" />;
-      if (category === 'Batizado') return <PartyPopper size={16} className="text-purple-400" />;
-      return <PartyPopper size={16} className="text-pink-400" />;
+      if (category === 'Reunião') return <Briefcase size={18} className="text-blue-400" />;
+      if (category === 'Pessoal') return <Heart size={18} className="text-red-400" />;
+      if (category === 'Batizado') return <PartyPopper size={18} className="text-purple-400" />;
+      return <PartyPopper size={18} className="text-pink-400" />;
   };
 
   const getColorByCategory = (category: string) => {
@@ -64,59 +63,87 @@ const EventsListView: React.FC = () => {
   };
 
   const getHeaderBg = (category: string) => {
-      if (category === 'Reunião') return 'bg-blue-500';
-      if (category === 'Pessoal') return 'bg-red-500';
-      if (category === 'Batizado') return 'bg-purple-500';
-      return 'bg-pink-500';
+      if (category === 'Reunião') return 'from-blue-600 to-indigo-700';
+      if (category === 'Pessoal') return 'from-red-600 to-pink-700';
+      if (category === 'Batizado') return 'from-purple-600 to-fuchsia-700';
+      return 'from-pink-600 to-rose-700';
   }
 
   return (
     <div className="p-6 h-full flex flex-col animate-fade-in relative">
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h2 className="text-3xl font-bold gemini-gradient-text">Eventos & Compromissos</h2>
-            <p className="text-slate-400">Gerencie casamentos, batizados, reuniões e das especiais.</p>
+            <p className="text-slate-400 mt-1">Gestão centralizada de datas, locais e orçamentos.</p>
         </div>
-        <button type="button" onClick={() => setSelectedEvent('new')} className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-full transition-all shadow-lg shadow-pink-900/20">
-             <Plus size={18} />
-             <span>Novo Evento</span>
+        <button type="button" onClick={() => setSelectedEvent('new')} className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white px-6 py-3 rounded-full transition-all shadow-xl font-bold">
+             <Plus size={20} />
+             <span>Agendar Novo</span>
           </button>
       </div>
-      <div className="relative mb-8">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-        <input type="text" placeholder="Pesquisar eventos, reuniões..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800/20 backdrop-blur-sm border border-slate-700/30 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-pink-500 transition-colors" />
+
+      <div className="relative mb-10">
+        <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-400" size={22} />
+        <input type="text" placeholder="Pesquisar por título, cliente ou pack..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800/10 backdrop-blur-sm border border-slate-700/30 rounded-2xl py-4 pl-14 pr-6 text-white focus:outline-none focus:border-pink-500 transition-colors text-lg" />
       </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="mb-10">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <CalendarIcon className="text-pink-400" /> Próximos
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+        <div className="mb-12">
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+            <CalendarIcon className="text-pink-400" size={24} /> 
+            Próximas Datas
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          
+          {/* GRELHA COM ESPAÇAMENTO VERTICAL AMPLIADO (gap-y-14) */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-y-14 gap-x-8">
             {upcomingEvents.map(event => {
                const client = clients.find(c => c.id === event.clientId);
                const category = getEventCategory(event);
                const subtag = getSubtag(event, category);
                return (
-                 <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-slate-800/20 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 hover:bg-slate-800/40 hover:border-pink-500/30 transition-all shadow-lg group relative overflow-hidden cursor-pointer">
-                    <div className={`absolute top-0 right-0 w-24 h-24 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 opacity-10 ${getHeaderBg(category)}`}></div>
-                    <div className="relative z-10">
-                        <div className="flex flex-wrap gap-2 mb-4 items-start">
-                            <span className={`border text-xs px-3 py-1 rounded-full uppercase font-bold tracking-wide flex items-center gap-2 ${getColorByCategory(category)}`}>
+                 <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/50 rounded-3xl p-8 hover:bg-slate-800/20 hover:border-pink-500/40 transition-all shadow-xl group relative overflow-hidden cursor-pointer h-fit flex flex-col min-h-[340px]">
+                    <div className={`absolute top-0 right-0 w-32 h-32 rounded-bl-full -mr-6 -mt-6 transition-transform group-hover:scale-110 opacity-20 bg-gradient-to-br ${getHeaderBg(category)}`}></div>
+                    
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex flex-wrap gap-3 mb-6 items-start">
+                            <span className={`border text-[10px] px-3 py-1.5 rounded-xl uppercase font-black tracking-widest flex items-center gap-2 ${getColorByCategory(category)}`}>
                                 {getIconByCategory(category)}
                                 {category}
                             </span>
-                            {subtag && <span className="border border-slate-600 bg-slate-800/50 text-slate-300 text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1"><Tag size={12} />{subtag}</span>}
+                            {subtag && <span className="border border-slate-600 bg-slate-900/50 text-slate-300 text-[10px] px-3 py-1.5 rounded-xl font-black uppercase tracking-widest flex items-center gap-2 truncate max-w-[180px]"><Tag size={12} />{subtag}</span>}
                         </div>
-                        <div className="mb-2">
-                            <span className="text-slate-400 text-xs font-mono bg-slate-900/40 px-2 py-0.5 rounded inline-block mb-1">{format(parseISO(event.start), 'dd/MM/yyyy')}</span>
-                            <h4 className="text-2xl font-bold text-white leading-tight flex items-center gap-2">{event.title}<Edit3 size={14} className="opacity-0 group-hover:opacity-50 transition-opacity text-slate-400"/></h4>
+
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 text-slate-500 font-mono text-xs mb-2">
+                               <CalendarIcon size={12} />
+                               <span>{format(parseISO(event.start), 'dd/MM/yyyy')}</span>
+                            </div>
+                            <h4 className="text-2xl font-bold text-white leading-tight group-hover:text-pink-400 transition-colors truncate pr-10">{event.title}</h4>
                         </div>
-                        {event.description && <p className="text-slate-400 text-sm mb-4 line-clamp-2">{event.description}</p>}
-                        <div className="space-y-2 pt-4 border-t border-slate-700/30">
-                            <div className="flex items-center gap-2 text-sm text-slate-300"><Clock size={16} className="text-slate-500" /><span>{format(parseISO(event.start), 'HH:mm')} - {format(parseISO(event.end), 'HH:mm')}</span></div>
-                            {event.location && <div className="flex items-center gap-2 text-sm text-slate-300"><MapPin size={16} className="text-slate-500" /><span>{event.location}</span></div>}
-                            {client && <div className="flex items-center gap-2 text-sm text-slate-300"><User size={16} className="text-slate-500" /><span>{client.name}</span></div>}
-                             <div className="flex items-center gap-2 text-sm text-slate-300"><span className="font-semibold text-green-400">€ {event.agreedPrice?.toLocaleString('pt-PT') || 0}</span></div>
+
+                        {event.description && <p className="text-slate-400 text-sm mb-8 line-clamp-2 leading-relaxed h-[40px]">{event.description}</p>}
+
+                        <div className="mt-auto pt-6 border-t border-slate-700/30 grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-sm text-slate-300 font-medium">
+                                    <Clock size={16} className="text-slate-500" />
+                                    <span>{format(parseISO(event.start), 'HH:mm')} - {format(parseISO(event.end), 'HH:mm')}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-slate-300 font-medium truncate">
+                                    <MapPin size={16} className="text-slate-500" />
+                                    <span>{event.location || 'Local a definir'}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-3 text-right">
+                                <div className="flex items-center justify-end gap-2 text-sm text-slate-300 font-medium truncate">
+                                    <User size={16} className="text-slate-500" />
+                                    <span>{client ? client.name : 'Sem cliente'}</span>
+                                </div>
+                                <div className="flex items-center justify-end gap-2 text-lg font-bold text-green-400">
+                                    <Euro size={16} />
+                                    <span>€ {event.agreedPrice?.toLocaleString('pt-PT') || 0}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                  </div>
@@ -124,14 +151,26 @@ const EventsListView: React.FC = () => {
             })}
           </div>
         </div>
+        
         {pastEvents.length > 0 && (
-            <div className="opacity-60 hover:opacity-100 transition-opacity duration-300">
-                <h3 className="text-lg font-bold text-slate-400 mb-4 flex items-center gap-2"><Clock size={18} /> Histórico</h3>
-                <div className="space-y-3">
+            <div className="opacity-50 hover:opacity-100 transition-opacity duration-500 pt-8 border-t border-slate-800">
+                <h3 className="text-lg font-bold text-slate-400 mb-6 flex items-center gap-3"><Clock size={20} /> Histórico de Realizados</h3>
+                <div className="space-y-4">
                     {pastEvents.map(event => (
-                        <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-slate-900/20 border border-slate-800 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/30">
-                            <div><h5 className="font-bold text-slate-300">{event.title}</h5><p className="text-xs text-slate-500">{format(parseISO(event.start), "dd 'de' MMMM, yyyy", {locale: ptBR})}</p></div>
-                            <span className="text-xs bg-slate-800 text-slate-500 px-2 py-1 rounded">Concluído</span>
+                        <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-slate-900/30 border border-slate-800 rounded-2xl p-6 flex items-center justify-between cursor-pointer hover:bg-slate-800/40 hover:border-slate-700 transition-all group">
+                            <div className="flex items-center gap-6">
+                               <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 group-hover:text-slate-300 transition-colors">
+                                  <CalendarIcon size={24} />
+                               </div>
+                               <div>
+                                  <h5 className="font-bold text-slate-300 text-lg group-hover:text-white transition-colors">{event.title}</h5>
+                                  <p className="text-sm text-slate-500">{format(parseISO(event.start), "dd 'de' MMMM, yyyy", {locale: ptBR})}</p>
+                               </div>
+                            </div>
+                            <div className="text-right">
+                               <span className="text-[10px] bg-slate-800 text-slate-500 px-3 py-1 rounded-full font-black uppercase tracking-widest">Arquivo</span>
+                               <p className="text-slate-400 font-mono mt-1">€ {event.agreedPrice?.toLocaleString('pt-PT')}</p>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -153,66 +192,74 @@ const EventsListView: React.FC = () => {
 interface EventModalProps {
     initialData?: CalendarEvent;
     onClose: () => void;
-    onSave: (data: Partial<CalendarEvent>) => void;
+    onSave: (data: any) => void;
     clients: any[];
 }
 
 const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, clients }) => {
     const [title, setTitle] = useState(initialData?.title || '');
     const [clientId, setClientId] = useState(initialData?.clientId || '');
-    const [start, setStart] = useState(initialData?.start ? initialData.start.slice(0, 16) : '');
-    const [end, setEnd] = useState(initialData?.end ? initialData.end.slice(0, 16) : '');
-    const [price, setPrice] = useState(initialData?.agreedPrice || 0);
+    const [date, setDate] = useState(initialData?.start ? initialData.start.slice(0, 10) : format(new Date(), 'yyyy-MM-dd'));
+    const [startTime, setStartTime] = useState(initialData?.start ? initialData.start.slice(11, 16) : '09:00');
+    const [endTime, setEndTime] = useState(initialData?.end ? initialData.end.slice(11, 16) : '10:00');
     const [location, setLocation] = useState(initialData?.location || '');
+    const [price, setPrice] = useState(initialData?.agreedPrice || 0);
     const [description, setDescription] = useState(initialData?.description || '');
+    const [type, setType] = useState<EventType>(initialData?.type || EventType.EVENT);
     const [packName, setPackName] = useState(initialData?.packName || '');
-    const [category, setCategory] = useState<string>(() => {
-        if (!initialData) return 'Casamento';
-        if (initialData.type === EventType.WORK) return 'Reunião';
-        if (initialData.type === EventType.PERSONAL) return 'Pessoal';
-        if (initialData.packName && initialData.packName.toLowerCase().includes('batizado')) return 'Batizado';
-        return 'Casamento'; 
-    });
 
     const handleSubmit = () => {
-        if(!title || !start || !end) return;
-        let type = EventType.EVENT;
-        if (category === 'Reunião') type = EventType.WORK;
-        else if (category === 'Pessoal') type = EventType.PERSONAL;
-        onSave({ title, clientId, start: new Date(start).toISOString(), end: new Date(end).toISOString(), agreedPrice: price, location, description, type, packName: packName || category });
+        if(!title || !date) return;
+        const start = `${date}T${startTime}:00`;
+        const end = `${date}T${endTime}:00`;
+        onSave({ 
+            title, 
+            clientId, 
+            start, 
+            end, 
+            agreedPrice: price, 
+            description, 
+            location, 
+            type, 
+            packName 
+        });
     }
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-scale-in" onClick={onClose}>
-            <div className="bg-slate-900/90 border border-slate-700/50 rounded-2xl w-full max-w-md p-6 shadow-2xl backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white">{initialData ? 'Editar Evento' : 'Novo Evento'}</h3>
+            <div className="bg-slate-900/95 border border-slate-700/50 rounded-2xl w-full max-w-2xl p-6 shadow-2xl backdrop-blur-xl flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-4">
+                    <div><h3 className="text-xl font-bold text-white">{initialData ? 'Editar Evento' : 'Novo Evento'}</h3></div>
                     <button type="button" onClick={onClose}><X className="text-slate-400 hover:text-white"/></button>
                 </div>
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <div>
-                        <label className="text-xs text-slate-400 uppercase font-bold mb-2 block">Tema / Categoria</label>
-                        <div className="flex flex-wrap gap-2">
-                            {['Casamento', 'Batizado', 'Reunião', 'Pessoal'].map(cat => (
-                                <button type="button" key={cat} onClick={() => setCategory(cat)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${category === cat ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'}`}>{cat}</button>
-                            ))}
+                <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Cliente</label><select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1"><option value="">Selecione...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Data</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Início</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Fim</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Local</label><input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Valor (€)</label><input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Tipo</label>
+                            <select value={type} onChange={e => setType(e.target.value as EventType)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1">
+                                <option value={EventType.EVENT}>Evento</option>
+                                <option value={EventType.WORK}>Trabalho</option>
+                                <option value={EventType.PERSONAL}>Pessoal</option>
+                            </select>
                         </div>
+                        <div><label className="text-xs text-slate-400 uppercase font-bold">Pack / Serviço</label><input type="text" value={packName} onChange={e => setPackName(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" /></div>
                     </div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1" placeholder="Ex: Casamento Joana & Pedro" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold flex items-center gap-2"><Tag size={12}/> Subtag / Nome do Pack</label><input type="text" value={packName} onChange={e => setPackName(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1" placeholder="Ex: Pack Gold, Fotografia, Videoclipe..." /></div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold">Cliente</label><select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1"><option value="">Selecione...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Início</label><input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1 text-sm" /></div>
-                        <div><label className="text-xs text-slate-400 uppercase font-bold">Fim</label><input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1 text-sm" /></div>
-                    </div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold">Local</label><input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold">Orçamento (€)</label><input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase font-bold">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-2 text-white mt-1 h-20"></textarea></div>
+                    <div><label className="text-xs text-slate-400 uppercase font-bold">Notas</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 h-24"></textarea></div>
                 </div>
-                <div className="mt-6">
-                    <button type="button" onClick={handleSubmit} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg">
-                        {initialData ? 'Salvar Alterações' : 'Criar Evento'}
-                    </button>
+                <div className="mt-6 pt-4 border-t border-slate-700/50">
+                     <button type="button" onClick={handleSubmit} className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg">{initialData ? 'Salvar Alterações' : 'Agendar Evento'}</button>
                 </div>
             </div>
         </div>
