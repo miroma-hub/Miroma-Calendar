@@ -65,15 +65,14 @@ const ClientList: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid Restaurado com tamanho fixo razoável e sem sobreposição */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-8 overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8 overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
         {filteredClients.map(client => {
           const revenue = getClientRevenue(client.id);
           const colors = ['from-blue-500 to-purple-600', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-indigo-500 to-blue-500'];
           const colorClass = colors[client.name.length % colors.length];
 
           return (
-          <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/30 rounded-[2rem] p-8 hover:border-blue-500/50 hover:bg-slate-800/30 transition-all cursor-pointer group relative overflow-hidden shadow-xl flex flex-col min-h-[280px]">
+          <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/30 rounded-[2rem] p-8 hover:border-blue-500/50 hover:bg-slate-800/30 transition-all cursor-pointer group relative overflow-hidden shadow-xl flex flex-col min-h-[300px]">
             <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${colorClass}`}></div>
             
             <div className="flex justify-between items-start mb-6">
@@ -82,7 +81,7 @@ const ClientList: React.FC = () => {
               </div>
               <div className="text-right">
                  <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-1">Faturamento</p>
-                 <span className="text-2xl font-mono font-bold text-green-400">€ {revenue.toLocaleString('pt-PT')}</span>
+                 <span className="text-xl font-mono font-bold text-green-400">€ {revenue.toLocaleString('pt-PT')}</span>
               </div>
             </div>
 
@@ -132,7 +131,6 @@ const ClientModal = ({ client, revenue, events, onClose, onSave }: { client: Cli
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-slate-900 border border-slate-700/50 rounded-[2.5rem] w-full max-w-5xl max-h-[90vh] shadow-2xl relative overflow-hidden flex flex-col animate-scale-in" onClick={(e) => e.stopPropagation()}>
                 
-                {/* Header do Modal */}
                 <div className={`h-40 bg-gradient-to-r ${colorClass} p-10 flex items-end relative flex-shrink-0`}>
                     <button onClick={onClose} className="absolute top-8 right-8 text-white/70 hover:text-white bg-black/20 p-2.5 rounded-full backdrop-blur-sm transition-all hover:scale-110"><X size={24}/></button>
                     <div className="flex items-center gap-8 translate-y-12">
@@ -154,7 +152,6 @@ const ClientModal = ({ client, revenue, events, onClose, onSave }: { client: Cli
                     </div>
                 </div>
 
-                {/* Tabs de Navegação */}
                 <div className="px-10 pt-20 flex-shrink-0">
                     <div className="flex gap-8 border-b border-slate-800">
                         <button onClick={() => setActiveTab('info')} className={`pb-4 px-1 font-bold text-sm uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${activeTab === 'info' ? 'text-blue-400 border-blue-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}>
@@ -169,7 +166,6 @@ const ClientModal = ({ client, revenue, events, onClose, onSave }: { client: Cli
                     </div>
                 </div>
 
-                {/* Área de Conteúdo */}
                 <div className="p-10 flex-1 overflow-y-auto custom-scrollbar">
                     {activeTab === 'info' && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-fade-in">
@@ -223,7 +219,7 @@ const ClientModal = ({ client, revenue, events, onClose, onSave }: { client: Cli
                                 <textarea 
                                     value={formData.conversationHistory} 
                                     onChange={e => setFormData({...formData, conversationHistory: e.target.value})} 
-                                    placeholder="Cole aqui o texto da conversa... EX: 'Cliente confirmou que o pagamento final será feito no dia do evento.' ou 'Acertamos que seriam 20 fotos no total'." 
+                                    placeholder="Cole aqui o texto da conversa..." 
                                     className="w-full flex-1 min-h-[400px] bg-slate-950/40 border border-slate-700/50 rounded-3xl p-8 text-slate-300 outline-none focus:border-purple-500 transition-all font-mono text-sm leading-relaxed custom-scrollbar shadow-inner"
                                 />
                             </div>
@@ -252,16 +248,10 @@ const ClientModal = ({ client, revenue, events, onClose, onSave }: { client: Cli
                                     </div>
                                 </div>
                             ))}
-                            {events.length === 0 && (
-                                <div className="text-center py-24 bg-slate-800/10 rounded-[2.5rem] border border-dashed border-slate-700/40 text-slate-600 italic text-xl">
-                                    Nenhum registro de projeto para este cliente.
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
 
-                {/* Footer do Modal */}
                 <div className="p-10 border-t border-slate-800/50 flex justify-end items-center bg-slate-900/50 backdrop-blur-md flex-shrink-0">
                     <button 
                         onClick={(e) => { e.stopPropagation(); onSave(client.id, formData); }} 
