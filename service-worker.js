@@ -1,9 +1,11 @@
 
-const CACHE_NAME = 'miroma-cache-v1';
+const CACHE_NAME = 'miroma-cache-v2';
 const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json'
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/miroma.png',
+  '/miroma.ico'
 ];
 
 self.addEventListener('install', (event) => {
