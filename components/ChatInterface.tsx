@@ -1,136 +1,378 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon, FileText, Paperclip } from 'lucide-react';
+import { Content, Part } from '@google/genai';
+import { ChatMessage, EventType, CalendarEvent, Client, Pack } from '../types';
+import { ai, MODEL_NAME, SYSTEM_INSTRUCTION, tools } from '../services/gemini';
 import { useApp } from '../context/AppContext';
-import { Plus, Edit2, Euro, X, Info } from 'lucide-react';
-import { Pack } from '../types';
+import ReactMarkdown from 'react-markdown';
+import { isSameDay, parseISO } from 'date-fns';
 
-const PacksView: React.FC = () => {
-  const { packs, addPack, updatePack } = useApp();
-  const [isEditing, setIsEditing] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<Pack>>({});
+interface ChatInterfaceProps {
+  onClose: () => void;
+  isOpen: boolean;
+}
 
-  const startEdit = (pack?: Pack) => {
-    if (pack) {
-      setIsEditing(pack.id);
-      setFormData(pack);
-    } else {
-      setIsEditing('new');
-      setFormData({ name: '', price: 0, conditions: '', isActive: true });
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
+  const { addEvent, updateEvent, deleteEvent, addClient, updateClient, deleteClient, deletePack, clients, events, packs } = useApp();
+  
+  const currentClientsRef = useRef<Client[]>([]);
+  const currentEventsRef = useRef<CalendarEvent[]>([]);
+  const currentPacksRef = useRef<Pack[]>([]);
+
+  useEffect(() => {
+    currentClientsRef.current = clients;
+    currentEventsRef.current = events;
+    currentPacksRef.current = packs;
+  }, [clients, events, packs]);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: '0',
+      role: 'model',
+      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua agenda e faturamento hoje? Agora posso ler os históricos de conversas com seus clientes para te aconselhar melhor!',
+      timestamp: new Date()
     }
+  ]);
+  const [input, setInput] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [attachment, setAttachment] = useState<{ data: string; mimeType: string; name: string } | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const restartTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) recognitionRef.current.abort();
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+    };
+  }, []);
+
+  const toggleListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    if (isListening) {
+      setIsListening(false);
+      if (recognitionRef.current) recognitionRef.current.stop();
+      return;
+    }
+    startRecognitionLoop();
   };
 
-  const handleSave = () => {
-    if (isEditing === 'new') {
-      if (formData.name && formData.price) addPack(formData as Omit<Pack, 'id'>);
-    } else if (isEditing) {
-      updatePack(isEditing, formData);
-    }
-    setIsEditing(null);
-    setFormData({});
+  const startRecognitionLoop = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (recognitionRef.current) recognitionRef.current.abort();
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false; 
+      recognition.interimResults = true;
+      recognition.onstart = () => setIsListening(true);
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) transcript += event.results[i][0].transcript;
+        }
+        if (transcript) setInput(prev => (prev ? prev + ' ' + transcript.trim() : transcript.trim()));
+      };
+      recognition.onerror = () => {};
+      recognition.onend = () => {
+        if (isListening) restartTimerRef.current = setTimeout(() => startRecognitionLoop(), 300);
+      };
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) { setIsListening(false); }
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Data = (reader.result as string).split(',')[1];
+        setAttachment({ 
+          data: base64Data, 
+          mimeType: file.type || 'application/octet-stream', 
+          name: file.name 
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const executeTool = async (functionCall: any) => {
+    const { name, args } = functionCall;
+    let result = '';
+
+    try {
+      switch (name) {
+        case 'getAppData': {
+          result = JSON.stringify({
+            clients: currentClientsRef.current,
+            events: currentEventsRef.current,
+            packs: currentPacksRef.current
+          });
+          break;
+        }
+
+        case 'addEvent': {
+          const searchTitle = args.title.trim().toLowerCase();
+          const isDuplicate = currentEventsRef.current.some(e => 
+            e.title.toLowerCase().trim().includes(searchTitle) && 
+            isSameDay(parseISO(e.start), parseISO(args.start))
+          );
+
+          if (isDuplicate) return "Aviso: Já existe um evento similar nesta data.";
+
+          let typeEnum = EventType.EVENT;
+          if (args.type === 'Trabalho') typeEnum = EventType.WORK;
+          else if (args.type === 'Encomenda') typeEnum = EventType.ORDER;
+          else if (args.type === 'Pessoal') typeEnum = EventType.PERSONAL;
+          
+          let targetClientId: string | undefined = undefined;
+          if (args.clientName) {
+            const normalizedName = args.clientName.trim().toLowerCase();
+            const existingClient = currentClientsRef.current.find(c => c.name.toLowerCase().trim() === normalizedName);
+            
+            if (existingClient) {
+                targetClientId = existingClient.id;
+            } else {
+                const createdClient = addClient({
+                    name: args.clientName.trim(),
+                    contact: args.clientContact || '',
+                    notes: 'Criado via AI',
+                    conversationHistory: ''
+                });
+                targetClientId = createdClient.id;
+                currentClientsRef.current = [...currentClientsRef.current, createdClient];
+            }
+          }
+
+          const newEvent = addEvent({
+            title: args.title.trim(),
+            start: args.start,
+            end: args.end,
+            type: typeEnum,
+            description: args.description,
+            location: args.location,
+            clientId: targetClientId,
+            packName: args.packName,
+            agreedPrice: args.price,
+            isFullPayment: args.isFullPayment || false,
+            bookingDate: args.bookingDate || new Date().toISOString()
+          });
+          
+          currentEventsRef.current = [...currentEventsRef.current, newEvent];
+          result = `Sucesso: Item "${newEvent.title}" agendado.`;
+          break;
+        }
+
+        case 'updateClient': {
+            const search = args.searchName.trim().toLowerCase();
+            const clientToUpdate = currentClientsRef.current.find(c => c.name.toLowerCase().trim().includes(search));
+            if (!clientToUpdate) return "Cliente não encontrado.";
+            updateClient(clientToUpdate.id, {
+                name: args.newName || clientToUpdate.name,
+                contact: args.newContact || clientToUpdate.contact,
+                conversationHistory: args.newHistory || clientToUpdate.conversationHistory
+            });
+            result = `Ficha de "${clientToUpdate.name}" atualizada.`;
+            break;
+        }
+
+        case 'addClient': {
+            const normalized = args.name.trim().toLowerCase();
+            const existing = currentClientsRef.current.find(c => c.name.toLowerCase().trim() === normalized);
+            if (existing) return `Aviso: O cliente "${existing.name}" já existe na base.`;
+            const newClient = addClient({ name: args.name.trim(), contact: args.contact || '', notes: args.notes || '', conversationHistory: args.history || '' });
+            currentClientsRef.current = [...currentClientsRef.current, newClient];
+            result = `Cliente "${newClient.name}" cadastrado com histórico de contexto.`;
+            break;
+        }
+
+        // ... outas ferramentas permanecem iguais ...
+        case 'updateEvent': {
+            const search = args.searchTitle.trim().toLowerCase();
+            const eventToUpdate = currentEventsRef.current.find(e => e.title.toLowerCase().trim().includes(search));
+            if (!eventToUpdate) return "Item não encontrado.";
+            updateEvent(eventToUpdate.id, {
+                title: args.newTitle || eventToUpdate.title,
+                agreedPrice: args.newPrice || eventToUpdate.agreedPrice,
+                bookingDate: args.newBookingDate || eventToUpdate.bookingDate,
+                isFullPayment: args.isFullPayment !== undefined ? args.isFullPayment : eventToUpdate.isFullPayment,
+                isDone: args.isDone !== undefined ? args.isDone : eventToUpdate.isDone
+            });
+            result = `Item "${eventToUpdate.title}" atualizado.`;
+            break;
+        }
+
+        case 'deleteEvent': {
+            const search = args.searchTitle.trim().toLowerCase();
+            const eventToDelete = currentEventsRef.current.find(e => e.title.toLowerCase().trim().includes(search));
+            if (!eventToDelete) return "Não encontrei o item para deletar.";
+            deleteEvent(eventToDelete.id);
+            currentEventsRef.current = currentEventsRef.current.filter(e => e.id !== eventToDelete.id);
+            result = `Sucesso: "${eventToDelete.title}" removido.`;
+            break;
+        }
+
+        case 'deleteClient': {
+            const search = args.searchName.trim().toLowerCase();
+            const clientToDelete = currentClientsRef.current.find(c => c.name.toLowerCase().trim().includes(search));
+            if (!clientToDelete) return "Cliente não encontrado.";
+            deleteClient(clientToDelete.id);
+            currentClientsRef.current = currentClientsRef.current.filter(c => c.id !== clientToDelete.id);
+            result = `Cliente "${clientToDelete.name}" removido.`;
+            break;
+        }
+
+        case 'deletePack': {
+            const search = args.searchName.trim().toLowerCase();
+            const packToDelete = currentPacksRef.current.find(p => p.name.toLowerCase().trim().includes(search));
+            if (!packToDelete) return "Pack não encontrado.";
+            deletePack(packToDelete.id);
+            currentPacksRef.current = currentPacksRef.current.filter(p => p.id !== packToDelete.id);
+            result = `Pack "${packToDelete.name}" removido.`;
+            break;
+        }
+
+        case 'addRevenue': {
+            const revenueDate = args.date || new Date().toISOString();
+            const newRev = addEvent({
+                title: args.description || 'Receita Avulsa',
+                start: revenueDate, 
+                end: revenueDate, 
+                type: EventType.WORK,
+                packName: 'Ajuste Financeiro', 
+                agreedPrice: args.amount, 
+                isFullPayment: true,
+                bookingDate: revenueDate
+            });
+            currentEventsRef.current = [...currentEventsRef.current, newRev];
+            result = `€${args.amount} adicionados ao faturamento.`;
+            break;
+        }
+
+        default: result = "Ação não mapeada.";
+      }
+    } catch (error) { result = `Erro: ${error}`; }
+    return result;
+  };
+
+  const handleSend = async () => {
+    if ((!input.trim() && !attachment) || isProcessing) return;
+    if (isListening) { setIsListening(false); if (recognitionRef.current) recognitionRef.current.stop(); }
+
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input || (attachment ? `Enviou um arquivo: ${attachment.name}` : ''), timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
+    
+    const currentInput = input;
+    const currentAttachment = attachment;
+    
+    setInput('');
+    setAttachment(null);
+    setIsProcessing(true);
+
+    try {
+      const history: Content[] = messages.map(m => ({
+        role: m.role === 'model' ? 'model' : 'user',
+        parts: [{ text: m.text || ' ' }]
+      }));
+
+      const chat = ai.chats.create({
+        model: MODEL_NAME,
+        config: { systemInstruction: SYSTEM_INSTRUCTION, tools: [{ functionDeclarations: tools }] },
+        history: history
+      });
+
+      let messageParts: (string | Part)[] = [currentInput || (currentAttachment ? "Analise este arquivo e considere os históricos dos clientes na base de dados." : "Olá")];
+      if (currentAttachment) {
+        messageParts.push({ inlineData: { data: currentAttachment.data, mimeType: currentAttachment.mimeType } });
+      }
+
+      let response = await chat.sendMessage({ message: messageParts as any });
+      let toolCalls = response.functionCalls;
+
+      while (toolCalls && toolCalls.length > 0) {
+        const functionResponses = [];
+        for (const call of toolCalls) {
+            const res = await executeTool(call);
+            functionResponses.push({ id: call.id, name: call.name, response: { result: res } });
+        }
+        const nextStep = await chat.sendMessage({ message: functionResponses.map(fr => ({ functionResponse: fr })) });
+        response = nextStep;
+        toolCalls = response.functionCalls;
+      }
+
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Pronto.", timestamp: new Date() }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro ao processar. Tente novamente.", timestamp: new Date() }]);
+    } finally { setIsProcessing(false); }
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div className="p-6 h-full flex flex-col animate-fade-in overflow-hidden">
-      <div className="flex justify-between items-center mb-10 flex-shrink-0 px-2">
-        <div>
-            <h2 className="text-4xl font-black gemini-gradient-text tracking-tight">Packs e Serviços</h2>
-            <p className="text-slate-400 mt-1">Configure seus produtos e tabelas de valores padrão.</p>
-        </div>
-        <button onClick={() => startEdit()} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl transition-all shadow-2xl font-bold active:scale-95 shadow-blue-900/20">
-            <Plus size={20} />
-            <span>Novo Pack</span>
-        </button>
+    <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col animate-slide-in-right">
+      <div className="p-4 border-b border-slate-700 flex justify-between items-center flex-shrink-0">
+        <div className="flex items-center gap-2"><Sparkles className="text-blue-400" size={20} /><h2 className="text-lg font-bold gemini-gradient-text">MIROMA AI</h2></div>
+        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={24} /></button>
       </div>
-      
-      {/* Grid consistente com a aba Clientes */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-8 overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
-        {packs.map(pack => (
-          <div key={pack.id} onClick={() => startEdit(pack)} className={`bg-slate-800/10 backdrop-blur-md border ${pack.isActive ? 'border-slate-700/30' : 'border-red-900/30 opacity-60'} rounded-[2rem] p-8 transition-all group hover:bg-slate-800/20 cursor-pointer hover:border-blue-500/40 shadow-xl flex flex-col min-h-[320px] relative`}>
-            
-            <div className="flex justify-between items-start mb-6">
-              <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-400 group-hover:bg-blue-500/20 transition-colors shadow-lg ring-1 ring-blue-500/20"><Euro size={28} /></div>
-              <button onClick={(e) => { e.stopPropagation(); startEdit(pack); }} className="text-slate-600 hover:text-white p-2.5 hover:bg-slate-700/50 rounded-xl transition-all"><Edit2 size={22} /></button>
-            </div>
-            
-            {/* Nome do Pack - Garantindo visibilidade total sem truncate agressivo */}
-            <h3 className="text-2xl font-bold text-white mb-2 break-words group-hover:text-blue-400 transition-colors leading-tight">
-              {pack.name || "Pack Sem Nome"}
-            </h3>
-            
-            <p className="text-3xl font-mono font-bold text-blue-400 mb-8">€ {pack.price.toLocaleString('pt-PT')}</p>
-            
-            <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-700/30 mb-8 flex-1 flex flex-col">
-               <div className="flex items-center gap-2 mb-3 text-slate-600">
-                  <Info size={14} />
-                  <p className="text-[10px] uppercase font-black tracking-widest">Incluso & Condições</p>
-               </div>
-               <p className="text-sm text-slate-400 leading-relaxed line-clamp-4 flex-1">{pack.conditions || 'Sem condições especiais cadastradas.'}</p>
-            </div>
-            
-            <div className="mt-auto flex justify-between items-center pt-6 border-t border-slate-700/20">
-               <span className={`text-[10px] px-4 py-1.5 rounded-xl font-black uppercase tracking-widest ${pack.isActive ? 'bg-green-900/20 text-green-400 border border-green-500/20' : 'bg-red-900/20 text-red-400 border border-red-500/20'}`}>
-                  {pack.isActive ? 'Ativo' : 'Pausado'}
-               </span>
-               <span className="text-xs text-slate-600 group-hover:text-blue-400 transition-colors font-black uppercase tracking-widest">Detalhes →</span>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] rounded-2xl p-4 ${msg.role === 'user' ? 'bg-slate-700 text-white' : 'bg-slate-800 border border-slate-700 text-slate-100'}`}>
+              <div className="prose prose-invert prose-sm break-words"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
             </div>
           </div>
         ))}
+        {isProcessing && <div className="text-xs text-slate-500 flex items-center gap-2 px-2"><Loader2 className="animate-spin" size={14}/> Consultando memória e registros...</div>}
+        <div ref={messagesEndRef} />
       </div>
 
-      {isEditing && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setIsEditing(null)}>
-          <div className="bg-slate-900 border border-slate-700/50 rounded-[2.5rem] w-full max-w-lg p-10 shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-10">
-               <h3 className="text-3xl font-black text-white">{isEditing === 'new' ? 'Novo Pack' : 'Configuração'}</h3>
-               <button onClick={() => setIsEditing(null)} className="text-slate-500 hover:text-white p-2.5 hover:bg-slate-800 rounded-full transition-all"><X size={28}/></button>
-            </div>
-            <div className="space-y-8">
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3 block">Nome do Serviço</label>
-                <input 
-                  type="text" 
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-white focus:border-blue-500 focus:outline-none text-xl font-bold" 
-                  value={formData.name || ''} 
-                  onChange={e => setFormData({...formData, name: e.target.value})} 
-                  placeholder="Ex: Casamento Diamante" 
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3 block">Valor Base (€)</label>
-                <input 
-                  type="number" 
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-white focus:border-blue-500 focus:outline-none text-xl font-mono font-bold" 
-                  value={formData.price || 0} 
-                  onChange={e => setFormData({...formData, price: Number(e.target.value)})} 
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3 block">Condições e Itens</label>
-                <textarea 
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-white focus:border-blue-500 focus:outline-none h-32 resize-none text-base leading-relaxed" 
-                  value={formData.conditions || ''} 
-                  onChange={e => setFormData({...formData, conditions: e.target.value})} 
-                  placeholder="O que está incluso neste pack?" 
-                />
-              </div>
-              <div className="flex items-center gap-4 p-5 bg-slate-800/30 rounded-2xl border border-slate-700/30">
-                <input 
-                  type="checkbox" 
-                  className="w-6 h-6 rounded-lg border-slate-600 bg-slate-900 text-blue-600 focus:ring-blue-500" 
-                  checked={formData.isActive ?? true} 
-                  onChange={e => setFormData({...formData, isActive: e.target.checked})} 
-                />
-                <label className="text-white font-bold">Pack disponível para novos contratos</label>
-              </div>
-            </div>
-            <div className="mt-12">
-              <button onClick={handleSave} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white rounded-2xl font-bold text-xl transition-all shadow-2xl active:scale-95 shadow-blue-900/40">Salvar Pack</button>
-            </div>
+      <div className="p-4 bg-slate-900 border-t border-slate-700 flex-shrink-0">
+        {attachment && (
+          <div className="mb-3 relative inline-flex items-center gap-3 bg-slate-800 p-3 rounded-xl border border-blue-500/30 shadow-lg animate-fade-in">
+             <div className="h-10 w-10 bg-slate-700 rounded-lg flex items-center justify-center text-blue-400"><FileText size={20} /></div>
+             <div className="flex flex-col max-w-[200px]"><span className="text-xs font-bold text-white truncate">{attachment.name}</span></div>
+             <button onClick={() => setAttachment(null)} className="ml-2 bg-slate-700 hover:bg-red-600 text-white rounded-full p-1 transition-colors"><X size={12}/></button>
+          </div>
+        )}
+        <div className="gemini-border p-[1px] rounded-3xl">
+          <div className="bg-slate-900 rounded-3xl flex items-center px-2 py-1">
+            <input 
+              type="text" 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()} 
+              placeholder={isListening ? "Pode falar..." : "Escreva ou anexe histórico..."} 
+              className="flex-1 bg-transparent border-none focus:ring-0 text-white px-3 py-3 text-sm" 
+            />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-blue-400"><Paperclip size={20} /></button>
+            <button onClick={toggleListening} className={`p-2 rounded-full transition-all ${isListening ? 'bg-blue-600 animate-pulse text-white' : 'text-slate-400'}`}><Mic size={20} /></button>
+            <button onClick={handleSend} disabled={!input.trim() && !attachment} className="p-2 text-blue-400 disabled:text-slate-600"><Send size={20} /></button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
-export default PacksView;
+export default ChatInterface;
