@@ -141,7 +141,9 @@ export const tools = [
   addRevenueTool
 ];
 
-export const MODEL_NAME = 'gemini-3-pro-preview';
+// Modelos para Failover
+export const MODEL_NAME_PRO = 'gemini-3-pro-preview';
+export const MODEL_NAME_FLASH = 'gemini-3-flash-preview';
 
 export const SYSTEM_INSTRUCTION = `
 Você é MIROMA, assistente de gestão inteligente e rigorosa.
