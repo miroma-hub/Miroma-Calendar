@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon } from 'lucide-react';
 import { Content, Part } from '@google/genai';
-import { ChatMessage, EventType, CalendarEvent } from '../types';
+import { ChatMessage, EventType, CalendarEvent, Client, Pack } from '../types';
 import { ai, MODEL_NAME, SYSTEM_INSTRUCTION, tools } from '../services/gemini';
 import { useApp } from '../context/AppContext';
 import ReactMarkdown from 'react-markdown';
@@ -22,6 +22,18 @@ declare global {
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   const { addEvent, updateEvent, deleteEvent, addClient, updateClient, deleteClient, deletePack, clients, events, packs } = useApp();
+  
+  // Refs para manter o estado atualizado durante o loop de ferramentas da IA (evita duplicados na mesma turna)
+  const currentClientsRef = useRef<Client[]>([]);
+  const currentEventsRef = useRef<CalendarEvent[]>([]);
+  const currentPacksRef = useRef<Pack[]>([]);
+
+  useEffect(() => {
+    currentClientsRef.current = clients;
+    currentEventsRef.current = events;
+    currentPacksRef.current = packs;
+  }, [clients, events, packs]);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '0',
@@ -36,7 +48,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   const [attachment, setAttachment] = useState<{ data: string; mimeType: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const restartTimerRef = useRef<any>(null);
 
@@ -94,13 +105,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     try {
       switch (name) {
         case 'addEvent': {
-          const isDuplicate = events.some(e => 
-            e.title.toLowerCase().includes(args.title.toLowerCase()) && 
+          const searchTitle = args.title.trim().toLowerCase();
+          const isDuplicate = currentEventsRef.current.some(e => 
+            e.title.toLowerCase().trim().includes(searchTitle) && 
             isSameDay(parseISO(e.start), parseISO(args.start))
           );
 
           if (isDuplicate) {
-             return "Erro: Já existe um evento similar nesta data. Operação cancelada para evitar duplicidade.";
+             return "Aviso: Já existe um evento similar nesta data. Operação ignorada para evitar duplicidade.";
           }
 
           let typeEnum = EventType.EVENT;
@@ -110,21 +122,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
           
           let targetClientId: string | undefined = undefined;
           if (args.clientName) {
-            const existingClient = clients.find(c => c.name.toLowerCase() === args.clientName.toLowerCase());
+            const normalizedName = args.clientName.trim().toLowerCase();
+            const existingClient = currentClientsRef.current.find(c => c.name.toLowerCase().trim() === normalizedName);
+            
             if (existingClient) {
                 targetClientId = existingClient.id;
             } else {
                 const createdClient = addClient({
-                    name: args.clientName,
+                    name: args.clientName.trim(),
                     contact: args.clientContact || '',
                     notes: 'Criado via AI'
                 });
                 targetClientId = createdClient.id;
+                // Atualiza ref local para próximas ferramentas no mesmo loop
+                currentClientsRef.current = [...currentClientsRef.current, createdClient];
             }
           }
 
           const newEvent = addEvent({
-            title: args.title,
+            title: args.title.trim(),
             start: args.start,
             end: args.end,
             type: typeEnum,
@@ -137,12 +153,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
             bookingDate: args.bookingDate || new Date().toISOString()
           });
           
-          result = `Sucesso: Item "${newEvent.title}" agendado. Faturamento registrado para ${parseISO(newEvent.bookingDate).toLocaleDateString('pt-PT')}.`;
+          currentEventsRef.current = [...currentEventsRef.current, newEvent];
+          result = `Sucesso: Item "${newEvent.title}" agendado.`;
           break;
         }
 
         case 'updateEvent': {
-            const eventToUpdate = events.find(e => e.title.toLowerCase().includes(args.searchTitle.toLowerCase()));
+            const search = args.searchTitle.trim().toLowerCase();
+            const eventToUpdate = currentEventsRef.current.find(e => e.title.toLowerCase().trim().includes(search));
             if (!eventToUpdate) return "Item não encontrado.";
             updateEvent(eventToUpdate.id, {
                 title: args.newTitle || eventToUpdate.title,
@@ -156,24 +174,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
         }
 
         case 'deleteEvent': {
-            const eventToDelete = events.find(e => e.title.toLowerCase().includes(args.searchTitle.toLowerCase()));
-            if (!eventToDelete) return "Não encontrei nenhum evento ou encomenda com esse título para deletar.";
+            const search = args.searchTitle.trim().toLowerCase();
+            const eventToDelete = currentEventsRef.current.find(e => e.title.toLowerCase().trim().includes(search));
+            if (!eventToDelete) return "Não encontrei o item para deletar.";
             deleteEvent(eventToDelete.id);
-            result = `Sucesso: O item "${eventToDelete.title}" foi removido da agenda.`;
+            currentEventsRef.current = currentEventsRef.current.filter(e => e.id !== eventToDelete.id);
+            result = `Sucesso: "${eventToDelete.title}" removido.`;
             break;
         }
 
         case 'addClient': {
-            if (clients.some(c => c.name.toLowerCase() === args.name.toLowerCase())) {
-                return "Erro: Já existe um cliente com este nome.";
+            const normalized = args.name.trim().toLowerCase();
+            const existing = currentClientsRef.current.find(c => c.name.toLowerCase().trim() === normalized);
+            if (existing) {
+                return `Aviso: O cliente "${existing.name}" já existe na base.`;
             }
-            const newClient = addClient({ name: args.name, contact: args.contact || '', notes: args.notes || '' });
+            const newClient = addClient({ name: args.name.trim(), contact: args.contact || '', notes: args.notes || '' });
+            currentClientsRef.current = [...currentClientsRef.current, newClient];
             result = `Cliente "${newClient.name}" cadastrado.`;
             break;
         }
 
         case 'updateClient': {
-            const clientToUpdate = clients.find(c => c.name.toLowerCase().includes(args.searchName.toLowerCase()));
+            const search = args.searchName.trim().toLowerCase();
+            const clientToUpdate = currentClientsRef.current.find(c => c.name.toLowerCase().trim().includes(search));
             if (!clientToUpdate) return "Cliente não encontrado.";
             updateClient(clientToUpdate.id, {
                 name: args.newName || clientToUpdate.name,
@@ -184,24 +208,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
         }
 
         case 'deleteClient': {
-            const clientToDelete = clients.find(c => c.name.toLowerCase().includes(args.searchName.toLowerCase()));
-            if (!clientToDelete) return "Não encontrei nenhum cliente com esse nome para deletar.";
+            const search = args.searchName.trim().toLowerCase();
+            const clientToDelete = currentClientsRef.current.find(c => c.name.toLowerCase().trim().includes(search));
+            if (!clientToDelete) return "Cliente não encontrado.";
             deleteClient(clientToDelete.id);
-            result = `Sucesso: A ficha do cliente "${clientToDelete.name}" foi removida.`;
+            currentClientsRef.current = currentClientsRef.current.filter(c => c.id !== clientToDelete.id);
+            result = `Cliente "${clientToDelete.name}" removido.`;
             break;
         }
 
         case 'deletePack': {
-            const packToDelete = packs.find(p => p.name.toLowerCase().includes(args.searchName.toLowerCase()));
-            if (!packToDelete) return "Não encontrei esse pack para deletar.";
+            const search = args.searchName.trim().toLowerCase();
+            const packToDelete = currentPacksRef.current.find(p => p.name.toLowerCase().trim().includes(search));
+            if (!packToDelete) return "Pack não encontrado.";
             deletePack(packToDelete.id);
-            result = `Sucesso: O pack "${packToDelete.name}" foi removido.`;
+            currentPacksRef.current = currentPacksRef.current.filter(p => p.id !== packToDelete.id);
+            result = `Pack "${packToDelete.name}" removido.`;
             break;
         }
 
         case 'addRevenue': {
             const revenueDate = args.date || new Date().toISOString();
-            addEvent({
+            const newRev = addEvent({
                 title: args.description || 'Receita Avulsa',
                 start: revenueDate, 
                 end: revenueDate, 
@@ -211,7 +239,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
                 isFullPayment: true,
                 bookingDate: revenueDate
             });
-            result = `€${args.amount} adicionados ao faturamento de ${parseISO(revenueDate).toLocaleDateString('pt-PT')}.`;
+            currentEventsRef.current = [...currentEventsRef.current, newRev];
+            result = `€${args.amount} adicionados ao faturamento.`;
             break;
         }
 
@@ -228,7 +257,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     const currentInput = input;
-    const currentAttachment = attachment;
     
     setInput('');
     setAttachment(null);
