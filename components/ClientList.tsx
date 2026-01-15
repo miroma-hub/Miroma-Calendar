@@ -1,20 +1,53 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, Phone, FileText, Plus, Euro, X, MessageSquareQuote, Calendar as CalendarIcon, ClipboardCopy } from 'lucide-react';
+import { Search, Phone, FileText, Plus, Euro, X, MessageSquareQuote, Calendar as CalendarIcon, ClipboardCopy, ArrowUpDown, ArrowUpAZ, ArrowDownZA, TrendingUp, TrendingDown, CalendarClock } from 'lucide-react';
 import { Client, CalendarEvent } from '../types';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+type SortOption = 'name_asc' | 'name_desc' | 'revenue_asc' | 'revenue_desc' | 'date_asc' | 'date_desc';
 
 const ClientList: React.FC = () => {
   const { clients, getClientRevenue, updateClient, addClient, events } = useApp();
   const [filter, setFilter] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [sortType, setSortType] = useState<SortOption>('name_asc');
 
-  const filteredClients = clients.filter(c => 
-    c.name.toLowerCase().includes(filter.toLowerCase()) || 
-    c.contact.toLowerCase().includes(filter.toLowerCase())
-  );
+  // Lógica de ordenação e filtro combinada
+  const sortedAndFilteredClients = useMemo(() => {
+    let result = [...clients].filter(c => 
+      c.name.toLowerCase().includes(filter.toLowerCase()) || 
+      c.contact.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    result.sort((a, b) => {
+      switch (sortType) {
+        case 'name_asc':
+          return a.name.localeCompare(b.name);
+        case 'name_desc':
+          return b.name.localeCompare(a.name);
+        case 'revenue_asc':
+          return getClientRevenue(a.id) - getClientRevenue(b.id);
+        case 'revenue_desc':
+          return getClientRevenue(b.id) - getClientRevenue(a.id);
+        case 'date_asc':
+        case 'date_desc':
+          const getNextDate = (clientId: string) => {
+            const clientEvents = events.filter(e => e.clientId === clientId);
+            if (clientEvents.length === 0) return sortType === 'date_asc' ? Infinity : -Infinity;
+            return Math.min(...clientEvents.map(e => new Date(e.start).getTime()));
+          };
+          const dateA = getNextDate(a.id);
+          const dateB = getNextDate(b.id);
+          return sortType === 'date_asc' ? dateA - dateB : dateB - dateA;
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [clients, filter, sortType, getClientRevenue, events]);
 
   const handleNewClient = () => {
     setSelectedClient({ id: 'new', name: '', contact: '', notes: '', conversationHistory: '' } as Client);
@@ -50,29 +83,59 @@ const ClientList: React.FC = () => {
         </button>
       </div>
 
-      <div className="relative mb-10 flex-shrink-0 px-2">
-        <div className="gemini-border p-[1px] rounded-2xl">
-          <div className="relative bg-[#0f172a] rounded-2xl overflow-hidden">
-            <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-500" size={22} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nome ou contato..." 
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="w-full bg-transparent py-5 pl-16 pr-6 text-white focus:outline-none transition-colors text-lg placeholder:text-slate-600"
-            />
+      <div className="flex flex-col md:flex-row gap-4 mb-10 flex-shrink-0 px-2">
+        {/* Busca */}
+        <div className="flex-1 relative">
+          <div className="gemini-border p-[1px] rounded-2xl">
+            <div className="relative bg-[#0f172a] rounded-2xl overflow-hidden">
+              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-500" size={22} />
+              <input 
+                type="text" 
+                placeholder="Buscar por nome ou contato..." 
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-full bg-transparent py-5 pl-16 pr-6 text-white focus:outline-none transition-colors text-lg placeholder:text-slate-600"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Ordenação */}
+        <div className="relative md:w-64">
+          <div className="gemini-border p-[1px] rounded-2xl h-full">
+            <div className="relative bg-[#0f172a] rounded-2xl overflow-hidden h-full flex items-center px-4">
+              <ArrowUpDown className="text-slate-500 mr-3" size={20} />
+              <select 
+                value={sortType}
+                onChange={(e) => setSortType(e.target.value as SortOption)}
+                className="bg-transparent text-white w-full outline-none text-sm font-bold cursor-pointer appearance-none"
+              >
+                <optgroup label="Ordem Alfabética" className="bg-slate-900">
+                  <option value="name_asc">Nome (A → Z)</option>
+                  <option value="name_desc">Nome (Z → A)</option>
+                </optgroup>
+                <optgroup label="Financeiro" className="bg-slate-900">
+                  <option value="revenue_desc">Faturamento (Maior)</option>
+                  <option value="revenue_asc">Faturamento (Menor)</option>
+                </optgroup>
+                <optgroup label="Cronologia" className="bg-slate-900">
+                  <option value="date_asc">Evento Mais Próximo</option>
+                  <option value="date_desc">Evento Mais Distante</option>
+                </optgroup>
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8 overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
-        {filteredClients.map(client => {
+        {sortedAndFilteredClients.map(client => {
           const revenue = getClientRevenue(client.id);
           const colors = ['from-blue-500 to-purple-600', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-indigo-500 to-blue-500'];
           const colorClass = colors[client.name.length % colors.length];
 
           return (
-          <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/30 rounded-[2rem] p-8 hover:border-blue-500/50 hover:bg-slate-800/30 transition-all cursor-pointer group relative overflow-hidden shadow-xl flex flex-col min-h-[300px]">
+          <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/30 rounded-[2rem] p-8 hover:border-blue-500/50 hover:bg-slate-800/30 transition-all cursor-pointer group relative overflow-hidden shadow-xl flex flex-col min-h-[300px] animate-fade-in">
             <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${colorClass}`}></div>
             
             <div className="flex justify-between items-start mb-6">
