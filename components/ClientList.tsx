@@ -21,6 +21,8 @@ const ClientList: React.FC = () => {
       c.contact.toLowerCase().includes(filter.toLowerCase())
     );
 
+    const now = Date.now();
+
     result.sort((a, b) => {
       switch (sortType) {
         case 'name_asc':
@@ -32,15 +34,45 @@ const ClientList: React.FC = () => {
         case 'revenue_desc':
           return getClientRevenue(b.id) - getClientRevenue(a.id);
         case 'date_asc':
-        case 'date_desc':
-          const getNextDate = (clientId: string) => {
+        case 'date_desc': {
+          const getClientTimeMeta = (clientId: string) => {
             const clientEvents = events.filter(e => e.clientId === clientId);
-            if (clientEvents.length === 0) return sortType === 'date_asc' ? Infinity : -Infinity;
-            return Math.min(...clientEvents.map(e => new Date(e.start).getTime()));
+            if (clientEvents.length === 0) return { category: 3, time: 0 }; // Sem eventos
+
+            const futureEvents = clientEvents
+              .map(e => new Date(e.start).getTime())
+              .filter(t => t >= now)
+              .sort((x, y) => x - y); // Ordena para pegar o mais próximo do futuro
+
+            if (futureEvents.length > 0) {
+              return { category: 1, time: futureEvents[0] }; // Tem evento futuro
+            }
+
+            const pastEvents = clientEvents
+              .map(e => new Date(e.start).getTime())
+              .filter(t => t < now)
+              .sort((x, y) => y - x); // Ordena para pegar o mais recente do passado
+
+            return { category: 2, time: pastEvents[0] }; // Apenas eventos passados
           };
-          const dateA = getNextDate(a.id);
-          const dateB = getNextDate(b.id);
-          return sortType === 'date_asc' ? dateA - dateB : dateB - dateA;
+
+          const metaA = getClientTimeMeta(a.id);
+          const metaB = getClientTimeMeta(b.id);
+
+          // REGRA SOLICITADA: Eventos futuros sempre primeiro (Categoria 1), 
+          // seguidos de passados (Categoria 2) e sem eventos (Categoria 3).
+          // Independente de ser ASC ou DESC, a prioridade de categoria é fixa.
+          if (metaA.category !== metaB.category) {
+            return metaA.category - metaB.category;
+          }
+
+          // Se ambos estão na mesma categoria, aí sim aplicamos a direção do tempo
+          if (sortType === 'date_asc') {
+            return metaA.time - metaB.time;
+          } else {
+            return metaB.time - metaA.time;
+          }
+        }
         default:
           return 0;
       }
@@ -118,9 +150,9 @@ const ClientList: React.FC = () => {
                   <option value="revenue_desc">Faturamento (Maior)</option>
                   <option value="revenue_asc">Faturamento (Menor)</option>
                 </optgroup>
-                <optgroup label="Cronologia" className="bg-slate-900">
-                  <option value="date_asc">Evento Mais Próximo</option>
-                  <option value="date_desc">Evento Mais Distante</option>
+                <optgroup label="Cronologia Inteligente" className="bg-slate-900">
+                  <option value="date_asc">Próximos Eventos</option>
+                  <option value="date_desc">Mais Longe / Antigos</option>
                 </optgroup>
               </select>
             </div>
@@ -134,12 +166,15 @@ const ClientList: React.FC = () => {
           const colors = ['from-blue-500 to-purple-600', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-indigo-500 to-blue-500'];
           const colorClass = colors[client.name.length % colors.length];
 
+          // Verifica se o cliente tem um evento futuro para feedback visual
+          const hasFutureEvent = events.some(e => e.clientId === client.id && new Date(e.start).getTime() >= Date.now());
+
           return (
-          <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/30 rounded-[2rem] p-8 hover:border-blue-500/50 hover:bg-slate-800/30 transition-all cursor-pointer group relative overflow-hidden shadow-xl flex flex-col min-h-[300px] animate-fade-in">
-            <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${colorClass}`}></div>
+          <div key={client.id} onClick={() => setSelectedClient(client)} className={`bg-slate-800/10 backdrop-blur-md border ${hasFutureEvent ? 'border-slate-700/60 shadow-blue-900/10' : 'border-slate-700/20 opacity-70'} rounded-[2rem] p-8 hover:border-blue-500/50 hover:bg-slate-800/30 transition-all cursor-pointer group relative overflow-hidden shadow-xl flex flex-col min-h-[300px] animate-fade-in`}>
+            <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${colorClass} ${hasFutureEvent ? 'opacity-100' : 'opacity-30'}`}></div>
             
             <div className="flex justify-between items-start mb-6">
-              <div className={`h-16 w-16 bg-gradient-to-br ${colorClass} rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg transform group-hover:scale-110 transition-transform flex-shrink-0`}>
+              <div className={`h-16 w-16 bg-gradient-to-br ${colorClass} rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg transform group-hover:scale-110 transition-transform flex-shrink-0 ${!hasFutureEvent && 'grayscale-[0.5] opacity-80'}`}>
                 {client.name.charAt(0)}
               </div>
               <div className="text-right">
@@ -148,9 +183,12 @@ const ClientList: React.FC = () => {
               </div>
             </div>
 
-            <h3 className={`text-2xl font-bold text-white mb-2 break-words group-hover:text-blue-400 transition-colors leading-tight`}>
-              {client.name}
-            </h3>
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className={`text-2xl font-bold text-white break-words group-hover:text-blue-400 transition-colors leading-tight`}>
+                {client.name}
+              </h3>
+              {hasFutureEvent && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" title="Evento Ativo"></div>}
+            </div>
             
             <p className="text-slate-400 text-sm mb-8 line-clamp-2 leading-relaxed min-h-[40px]">
               {client.notes || 'Sem observações detalhadas.'}
