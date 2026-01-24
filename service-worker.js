@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'miroma-cache-v8'; // Bumped version to v8
+const CACHE_NAME = 'miroma-cache-v9'; 
 const urlsToCache = [
   './',
   'index.html',
