@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, Calendar, Users, Settings, Sparkles, Package, Tag, Wallet, CalendarRange } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, Sparkles, Package, Tag, Wallet, CalendarRange, Map as MapIcon } from 'lucide-react';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -13,6 +13,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, onOpenAI }
     { id: 'dashboard', icon: LayoutDashboard, label: 'Painel' },
     { id: 'billing', icon: Wallet, label: 'Faturamento' },
     { id: 'events_view', icon: CalendarRange, label: 'Eventos' },
+    { id: 'map', icon: MapIcon, label: 'Mapa' },
     { id: 'orders', icon: Package, label: 'Encomendas' },
     { id: 'clients', icon: Users, label: 'Clientes' },
     { id: 'packs', icon: Tag, label: 'Packs' },
@@ -25,7 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, onOpenAI }
         <span className="font-bold text-xl md:text-3xl tracking-tight gemini-gradient-text truncate">MIROMA</span>
       </div>
 
-      <nav className="flex-1 py-6 space-y-2 px-3">
+      <nav className="flex-1 py-6 space-y-2 px-3 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => {
           const isActive = currentView === item.id;
           return (
