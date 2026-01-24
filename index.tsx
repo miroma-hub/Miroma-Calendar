@@ -3,7 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-console.log('MIROMA AI v1.0.7 - Strict React 18 deployment fix');
+console.log('MIROMA AI v1.0.8 - Full React 18 Sync (Vercel Fix)');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
