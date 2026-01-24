@@ -1,5 +1,4 @@
-
-const CACHE_NAME = 'miroma-cache-v9'; 
+const CACHE_NAME = 'miroma-cache-v13'; 
 const urlsToCache = [
   './',
   'index.html',
