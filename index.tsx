@@ -3,7 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-console.log('MIROMA AI v1.0.1 - Inicializando com suporte a Mapas Logísticos');
+console.log('MIROMA AI v1.0.2 - Deploy fix com --legacy-peer-deps');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
