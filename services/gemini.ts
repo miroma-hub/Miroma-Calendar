@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 
 export const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -22,15 +23,15 @@ const addEventTool: FunctionDeclaration = {
       title: { type: Type.STRING, description: 'Título do evento' },
       start: { type: Type.STRING, description: 'Data/Hora início ISO 8601' },
       end: { type: Type.STRING, description: 'Data/Hora fim ISO 8601' },
-      bookingDate: { type: Type.STRING, description: 'Data em que a reserva foi feita ou paga (importante para faturamento). Use ISO 8601.' },
+      bookingDate: { type: Type.STRING, description: 'Data em que a reserva foi feita ou paga. Use ISO 8601.' },
       type: { type: Type.STRING, description: 'Tipo: "Trabalho", "Pessoal", "Encomenda" ou "Evento"' },
       description: { type: Type.STRING, description: 'Descrição detalhada' },
-      location: { type: Type.STRING, description: 'Local (Endereço)' },
+      location: { type: Type.STRING, description: 'Local (Endereço completo)' },
       lat: { type: Type.NUMBER, description: 'Latitude para o mapa' },
       lng: { type: Type.NUMBER, description: 'Longitude para o mapa' },
       clientName: { type: Type.STRING, description: 'Nome do cliente para vínculo/criação.' },
       clientContact: { type: Type.STRING, description: 'Contato do cliente' },
-      isFullPayment: { type: Type.BOOLEAN, description: 'Defina como TRUE se o usuário indicar pagamento integral (100%, totalidade, tudo pago).' },
+      isFullPayment: { type: Type.BOOLEAN, description: 'Defina como TRUE se o usuário indicar pagamento integral.' },
       packName: { type: Type.STRING, description: 'Nome do serviço/pack.' },
       price: { type: Type.NUMBER, description: 'Valor total em Euros.' }
     },
@@ -50,7 +51,7 @@ const updateEventTool: FunctionDeclaration = {
       newLocation: { type: Type.STRING, description: 'Novo endereço' },
       lat: { type: Type.NUMBER, description: 'Nova latitude' },
       lng: { type: Type.NUMBER, description: 'Nova longitude' },
-      newBookingDate: { type: Type.STRING, description: 'Atualizar data de reserva/pagamento inicial ISO 8601' },
+      newBookingDate: { type: Type.STRING, description: 'Atualizar data de reserva ISO 8601' },
       isFullPayment: { type: Type.BOOLEAN, description: 'Alterar status de pagamento integral' },
       isDone: { type: Type.BOOLEAN, description: 'Concluído' }
     },
@@ -60,11 +61,11 @@ const updateEventTool: FunctionDeclaration = {
 
 const deleteEventTool: FunctionDeclaration = {
   name: 'deleteEvent',
-  description: 'Remove permanentemente um item (evento ou encomenda) da agenda através do título.',
+  description: 'Remove permanentemente um item da agenda através do título.',
   parameters: {
     type: Type.OBJECT,
     properties: { 
-      searchTitle: { type: Type.STRING, description: 'Título aproximado do evento ou encomenda a remover.' } 
+      searchTitle: { type: Type.STRING, description: 'Título aproximado do item.' } 
     },
     required: ['searchTitle']
   }
@@ -72,14 +73,14 @@ const deleteEventTool: FunctionDeclaration = {
 
 const addClientTool: FunctionDeclaration = {
   name: 'addClient',
-  description: 'Cria ficha de cliente. NÃO crie se já existir um com nome similar.',
+  description: 'Cria ficha de cliente.',
   parameters: {
     type: Type.OBJECT,
     properties: {
       name: { type: Type.STRING },
       contact: { type: Type.STRING },
       notes: { type: Type.STRING },
-      history: { type: Type.STRING, description: 'Log de conversas passadas para contexto futuro.' }
+      history: { type: Type.STRING, description: 'Log de conversas passadas.' }
     },
     required: ['name']
   }
@@ -94,7 +95,7 @@ const updateClientTool: FunctionDeclaration = {
       searchName: { type: Type.STRING },
       newName: { type: Type.STRING },
       newContact: { type: Type.STRING },
-      newHistory: { type: Type.STRING, description: 'Atualiza o registro de conversas combinadas.' }
+      newHistory: { type: Type.STRING, description: 'Atualiza o registro de conversas.' }
     },
     required: ['searchName']
   }
@@ -106,7 +107,7 @@ const deleteClientTool: FunctionDeclaration = {
   parameters: {
     type: Type.OBJECT,
     properties: { 
-      searchName: { type: Type.STRING, description: 'Nome aproximado do cliente a remover.' } 
+      searchName: { type: Type.STRING, description: 'Nome aproximado do cliente.' } 
     },
     required: ['searchName']
   }
@@ -118,7 +119,7 @@ const deletePackTool: FunctionDeclaration = {
   parameters: {
     type: Type.OBJECT,
     properties: { 
-      searchName: { type: Type.STRING, description: 'Nome do pack a remover.' } 
+      searchName: { type: Type.STRING, description: 'Nome do pack.' } 
     },
     required: ['searchName']
   }
@@ -132,7 +133,7 @@ const addRevenueTool: FunctionDeclaration = {
     properties: {
       amount: { type: Type.NUMBER },
       description: { type: Type.STRING },
-      date: { type: Type.STRING, description: 'Data da receita (ISO 8601). O padrão é hoje.' }
+      date: { type: Type.STRING, description: 'Data da receita (ISO 8601).' }
     },
     required: ['amount']
   }
@@ -145,31 +146,23 @@ export const tools = [
   addRevenueTool
 ];
 
-// Modelos para Failover
 export const MODEL_NAME_PRO = 'gemini-3-pro-preview';
 export const MODEL_NAME_FLASH = 'gemini-3-flash-preview';
 
 export const SYSTEM_INSTRUCTION = `
-Você é MIROMA, assistente de gestão inteligente e rigorosa.
+Você é MIROMA, assistente de gestão inteligente.
 
-PESQUISA E ANÁLISE (CONSELHEIRO):
-- Sempre que o usuário pedir informações ou "conselhos" sobre o que fazer com um cliente, use 'getAppData'.
-- No retorno dos dados, você encontrará um campo 'conversationHistory' em cada cliente.
-- REGRA DE OURO: Se o usuário pedir para mudar algo que vá contra o que está no 'conversationHistory' (combinados passados), você deve ALERTAR o usuário imediatamente antes de realizar qualquer alteração.
-- Analise os logs de conversa para entender o tom do cliente e acordos feitos por texto/chat.
+MAPEAMENTO E LOGÍSTICA:
+- Você agora gere um MAPA LOGÍSTICO. Sempre que criar um evento com endereço, o sistema tentará geolocalizar.
+- Se o usuário perguntar "Onde é o evento X?" ou "Mostre no mapa", informe que ele pode ver os detalhes na aba MAPA.
+- Use 'lat' e 'lng' se tiver coordenadas precisas, caso contrário, o endereço em 'location' basta para o geocoder híbrido.
 
-CAPACIDADES DE VISÃO:
-- Você pode receber e analisar imagens. Extraia dados visuais para facilitar a gestão.
+CONSELHEIRO E PESQUISA:
+- Use 'getAppData' para cruzar dados.
+- Verifique 'conversationHistory' antes de sugerir mudanças em acordos passados.
 
-MAPEAMENTO LOGÍSTICO:
-- Você tem acesso às coordenadas de latitude e longitude dos eventos.
-- Ao criar ou atualizar eventos, se o usuário der um endereço, o sistema tentará geolocalizar sozinho.
-- Se o usuário pedir para você "colocar um evento em tal lugar do mapa", use os campos 'lat' e 'lng' nas ferramentas de evento.
+REGRA DE CLIENTES:
+- JAMAIS duplique clientes. Verifique sempre antes de criar.
 
-REGRA CRÍTICA - CLIENTES:
-1. **Unicidade de Clientes**: JAMAIS crie duplicados. Verifique se o nome já existe.
-2. Antes de 'addClient' ou 'addEvent', consulte a base se necessário.
-
-Estilo: Profissional, analítico e cauteloso. Informe sempre se um pedido do usuário conflita com acordos registrados no histórico do cliente.
-Data atual: ${new Date().toISOString()}.
+Estilo: Profissional, analítico e direto. Data atual: ${new Date().toISOString()}.
 `;
