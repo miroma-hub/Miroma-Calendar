@@ -6,7 +6,7 @@ import ClientList from './components/ClientList';
 import PacksView from './components/PacksView';
 import OrdersView from './components/OrdersView';
 import EventsListView from './components/EventsListView';
-import MapView from './components/MapView';
+import MapView from './components/MapView'; // Certifique-se de que o arquivo no disco é MapView.tsx
 import SettingsView from './components/SettingsView';
 import ChatInterface from './components/ChatInterface';
 import BillingView from './components/BillingView';
@@ -46,8 +46,8 @@ const AppContent: React.FC = () => {
           />
           <main className="flex-1 overflow-hidden relative flex flex-col backdrop-blur-sm bg-slate-900/10">
           <header className="h-16 border-b border-slate-800/30 flex items-center px-8 justify-between md:hidden bg-slate-900/20">
-              <span className="font-bold">MIROMA</span>
-              <button onClick={() => setIsChatOpen(true)} className="text-blue-400">Chat</button>
+              <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">MIROMA</span>
+              <button onClick={() => setIsChatOpen(true)} className="text-blue-400 text-sm font-bold">Chat AI</button>
           </header>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
               {renderView()}
