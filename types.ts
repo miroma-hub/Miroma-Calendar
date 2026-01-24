@@ -1,10 +1,9 @@
-
 export interface Client {
   id: string;
   name: string;
   contact: string;
   notes: string;
-  conversationHistory?: string; // Novo campo para contexto da AI
+  conversationHistory?: string;
 }
 
 export enum EventType {
@@ -31,16 +30,12 @@ export interface CalendarEvent {
   type: EventType;
   description?: string;
   location?: string; 
-  
-  // Relations
+  lat?: number;
+  lng?: number;
   clientId?: string; 
-  
-  // Financial
   packName?: string; 
   agreedPrice?: number; 
-  isFullPayment?: boolean; // Nova flag para pagamento 100%
-  
-  // Order specific
+  isFullPayment?: boolean;
   isDone?: boolean;
   shippingAddress?: string;
   referenceImages?: string[]; 
@@ -60,4 +55,4 @@ export interface TelegramConfig {
   enabled: boolean;
 }
 
-export type ViewState = 'dashboard' | 'calendar' | 'clients' | 'packs' | 'orders' | 'settings' | 'billing' | 'events_view';
+export type ViewState = 'dashboard' | 'calendar' | 'clients' | 'packs' | 'orders' | 'settings' | 'billing' | 'events_view' | 'map';
