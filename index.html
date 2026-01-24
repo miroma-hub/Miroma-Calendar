@@ -10,8 +10,10 @@
     <link rel="apple-touch-icon" href="miroma.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- Leaflet CSS - Essencial para o mapa renderizar os tiles corretamente -->
+    
+    <!-- Leaflet CSS - Obrigatório estar no HEAD -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
     <link rel="manifest" href="manifest.json" />
     <style>
       body {
@@ -19,42 +21,20 @@
         background-color: #0f172a;
         color: #f8fafc;
         overflow: hidden;
-        touch-action: manipulation;
       }
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #0f172a; }
-      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-      .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #334155 #0f172a; }
       .gemini-gradient-text {
         background: linear-gradient(74deg, #4285F4 0%, #9B72CB 50%, #D96570 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        color: transparent;
       }
-      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-      
-      .leaflet-container {
-        background: #0f172a !important;
-        width: 100%;
-        height: 100%;
-      }
+      .leaflet-container { background: #0f172a !important; width: 100%; height: 100%; }
       .custom-popup .leaflet-popup-content-wrapper {
-        background: rgba(15, 23, 42, 0.9) !important;
+        background: rgba(15, 23, 42, 0.95) !important;
         backdrop-filter: blur(12px);
         color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 1.5rem !important;
-        padding: 0;
-        overflow: hidden;
-      }
-      .custom-popup .leaflet-popup-content {
-        margin: 0;
-        width: 220px !important;
-      }
-      .custom-popup .leaflet-popup-tip {
-        background: rgba(15, 23, 42, 0.9) !important;
       }
     </style>
     <script type="importmap">
@@ -81,6 +61,17 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
+    <script type="module" src="index.tsx?v=1.0.1"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js').then(reg => {
+            console.log('SW registrado');
+          }).catch(err => {
+            console.log('SW falhou', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
