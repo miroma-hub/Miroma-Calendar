@@ -3,7 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-console.log('MIROMA AI v1.0.9 - Definitive Build Fix');
+console.log('MIROMA AI v1.1.1 - Clean Importmap & React 18 Fix');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
