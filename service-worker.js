@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'miroma-cache-v6';
+const CACHE_NAME = 'miroma-cache-v8'; // Bumped version to v8
 const urlsToCache = [
   './',
   'index.html',
@@ -13,8 +13,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        // Cacheia os arquivos. Incluímos os parâmetros de versão se necessário, 
-        // mas o addAll em caminhos simples já basta se o SW for novo.
         return cache.addAll(urlsToCache);
       })
   );
@@ -28,7 +26,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Limpando cache antigo:', cacheName);
             return caches.delete(cacheName);
           }
         })
