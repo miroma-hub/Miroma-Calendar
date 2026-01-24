@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
@@ -6,6 +5,7 @@ import ClientList from './components/ClientList';
 import PacksView from './components/PacksView';
 import OrdersView from './components/OrdersView';
 import EventsListView from './components/EventsListView';
+import MapView from './components/MapView';
 import SettingsView from './components/SettingsView';
 import ChatInterface from './components/ChatInterface';
 import BillingView from './components/BillingView';
@@ -26,6 +26,7 @@ const AppContent: React.FC = () => {
       case 'packs': return <PacksView />;
       case 'orders': return <OrdersView />;
       case 'events_view': return <EventsListView />;
+      case 'map': return <MapView />;
       case 'billing': return <BillingView />;
       case 'settings': return <SettingsView />;
       default: return <DashboardView />;
