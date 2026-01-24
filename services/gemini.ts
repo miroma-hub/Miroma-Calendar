@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 
 export const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -26,7 +25,9 @@ const addEventTool: FunctionDeclaration = {
       bookingDate: { type: Type.STRING, description: 'Data em que a reserva foi feita ou paga (importante para faturamento). Use ISO 8601.' },
       type: { type: Type.STRING, description: 'Tipo: "Trabalho", "Pessoal", "Encomenda" ou "Evento"' },
       description: { type: Type.STRING, description: 'Descrição detalhada' },
-      location: { type: Type.STRING, description: 'Local' },
+      location: { type: Type.STRING, description: 'Local (Endereço)' },
+      lat: { type: Type.NUMBER, description: 'Latitude para o mapa' },
+      lng: { type: Type.NUMBER, description: 'Longitude para o mapa' },
       clientName: { type: Type.STRING, description: 'Nome do cliente para vínculo/criação.' },
       clientContact: { type: Type.STRING, description: 'Contato do cliente' },
       isFullPayment: { type: Type.BOOLEAN, description: 'Defina como TRUE se o usuário indicar pagamento integral (100%, totalidade, tudo pago).' },
@@ -39,13 +40,16 @@ const addEventTool: FunctionDeclaration = {
 
 const updateEventTool: FunctionDeclaration = {
   name: 'updateEvent',
-  description: 'Edita um evento ou encomenda existente.',
+  description: 'Edita um evento ou encomenda existente, incluindo sua localização geográfica.',
   parameters: {
     type: Type.OBJECT,
     properties: {
       searchTitle: { type: Type.STRING, description: 'Título do item original' },
       newTitle: { type: Type.STRING, description: 'Novo título' },
       newPrice: { type: Type.NUMBER, description: 'Novo valor' },
+      newLocation: { type: Type.STRING, description: 'Novo endereço' },
+      lat: { type: Type.NUMBER, description: 'Nova latitude' },
+      lng: { type: Type.NUMBER, description: 'Nova longitude' },
       newBookingDate: { type: Type.STRING, description: 'Atualizar data de reserva/pagamento inicial ISO 8601' },
       isFullPayment: { type: Type.BOOLEAN, description: 'Alterar status de pagamento integral' },
       isDone: { type: Type.BOOLEAN, description: 'Concluído' }
@@ -156,6 +160,11 @@ PESQUISA E ANÁLISE (CONSELHEIRO):
 
 CAPACIDADES DE VISÃO:
 - Você pode receber e analisar imagens. Extraia dados visuais para facilitar a gestão.
+
+MAPEAMENTO LOGÍSTICO:
+- Você tem acesso às coordenadas de latitude e longitude dos eventos.
+- Ao criar ou atualizar eventos, se o usuário der um endereço, o sistema tentará geolocalizar sozinho.
+- Se o usuário pedir para você "colocar um evento em tal lugar do mapa", use os campos 'lat' e 'lng' nas ferramentas de evento.
 
 REGRA CRÍTICA - CLIENTES:
 1. **Unicidade de Clientes**: JAMAIS crie duplicados. Verifique se o nome já existe.
