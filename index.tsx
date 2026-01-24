@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-console.log('MIROMA AI v1.0.6 - Strict React 18 Cleanup (Error #31 Fix)');
+console.log('MIROMA AI v1.0.7 - Strict React 18 deployment fix');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
