@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ViewState } from '../types';
 import { LayoutDashboard, Users, Settings, Sparkles, Package, Tag, Wallet, CalendarRange, Map as MapIcon } from 'lucide-react';
