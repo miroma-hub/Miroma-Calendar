@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { EventType, CalendarEvent } from '../types';
-import { MapPin, Calendar as CalendarIcon, Clock, User, PartyPopper, Plus, X, Search, Briefcase, Heart, Tag, Euro, Cake, Users } from 'lucide-react';
+import { EventType, CalendarEvent, Employee } from '../types';
+import { MapPin, Calendar as CalendarIcon, Clock, User, PartyPopper, Plus, X, Search, Briefcase, Heart, Tag, Euro, Cake, Users, Sparkles } from 'lucide-react';
 import { format, parseISO, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const EventsListView: React.FC = () => {
-  const { events, clients, addEvent, updateEvent } = useApp();
+  const { events, clients, employees, addEvent, updateEvent } = useApp();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | 'new' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -91,13 +91,14 @@ const EventsListView: React.FC = () => {
             Futuros
           </h3>
           
-          {/* Grid corrigido para evitar sobreposição */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-8 items-stretch">
             {upcomingEvents.map(event => {
                const client = clients.find(c => c.id === event.clientId);
                const category = getEventCategory(event);
+               const staffCount = event.assignedEmployeeIds?.length || 0;
+
                return (
-                 <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 hover:bg-slate-800/20 hover:border-pink-500/40 transition-all shadow-xl group relative overflow-hidden cursor-pointer flex flex-col min-h-[320px]">
+                 <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-slate-800/10 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 hover:bg-slate-800/20 hover:border-pink-500/40 transition-all shadow-xl group relative overflow-hidden cursor-pointer flex flex-col min-h-[350px]">
                     <div className={`absolute top-0 right-0 w-24 h-24 rounded-bl-full -mr-4 -mt-4 opacity-10 bg-gradient-to-br ${getHeaderBg(category)}`}></div>
                     
                     <div className="relative z-10 flex flex-col h-full">
@@ -117,7 +118,28 @@ const EventsListView: React.FC = () => {
                             </div>
                         </div>
 
-                        <p className="text-slate-400 text-xs mb-6 line-clamp-2 flex-1 leading-relaxed">{event.description || 'Sem descrição.'}</p>
+                        <div className="mb-6">
+                          <p className="text-slate-400 text-xs mb-3 line-clamp-2 leading-relaxed">{event.description || 'Sem descrição.'}</p>
+                          <div className="flex items-center gap-2">
+                             <div className="flex -space-x-2">
+                               {staffCount === 0 ? (
+                                 <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold text-white" title="Você (Proprietário)">EU</div>
+                               ) : (
+                                 event.assignedEmployeeIds?.slice(0, 3).map(id => {
+                                   const emp = employees.find(e => e.id === id);
+                                   return emp?.photo ? (
+                                      <img key={id} src={emp.photo} className="w-8 h-8 rounded-full border-2 border-slate-900 object-cover" />
+                                   ) : (
+                                      <div key={id} className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center text-[10px] font-bold text-white">{emp?.name.charAt(0)}</div>
+                                   )
+                                 })
+                               )}
+                             </div>
+                             <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                {staffCount === 0 ? 'Individual' : staffCount === 1 ? '1 Integrante' : `${staffCount} Integrantes`}
+                             </span>
+                          </div>
+                        </div>
 
                         <div className="mt-auto pt-4 border-t border-slate-700/20 grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -174,22 +196,22 @@ const EventsListView: React.FC = () => {
             onClose={() => setSelectedEvent(null)} 
             onSave={handleSave}
             clients={clients}
+            employees={employees}
           />
       )}
     </div>
   );
 };
 
-// ... Resto do componente EventModal permanece igual ...
-
 interface EventModalProps {
     initialData?: CalendarEvent;
     onClose: () => void;
     onSave: (data: any) => void;
     clients: any[];
+    employees: Employee[];
 }
 
-const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, clients }) => {
+const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, clients, employees }) => {
     const [title, setTitle] = useState(initialData?.title || '');
     const [clientId, setClientId] = useState(initialData?.clientId || '');
     const [date, setDate] = useState(initialData?.start ? initialData.start.slice(0, 10) : format(new Date(), 'yyyy-MM-dd'));
@@ -201,6 +223,7 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
     const [type, setType] = useState<EventType>(initialData?.type || EventType.EVENT);
     const [packName, setPackName] = useState(initialData?.packName || '');
     const [category, setCategory] = useState<string>('Evento');
+    const [assignedStaff, setAssignedStaff] = useState<string[]>(initialData?.assignedEmployeeIds || []);
 
     useEffect(() => {
         if (initialData) {
@@ -222,6 +245,10 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
         { name: 'Pessoal', icon: Heart, color: 'text-red-400', type: EventType.PERSONAL }
     ];
 
+    const toggleStaff = (id: string) => {
+      setAssignedStaff(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
     const handleCategorySelect = (cat: any) => {
         setCategory(cat.name);
         setType(cat.type);
@@ -232,7 +259,7 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
         if(!title || !date) return;
         const start = `${date}T${startTime}:00`;
         const end = `${date}T${endTime}:00`;
-        onSave({ title, clientId, start, end, agreedPrice: price, description, location, type, packName });
+        onSave({ title, clientId, start, end, agreedPrice: price, description, location, type, packName, assignedEmployeeIds: assignedStaff });
     }
 
     return (
@@ -244,18 +271,6 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
                 </div>
                 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
-                    <div>
-                        <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3 block">Categoria Visual</label>
-                        <div className="flex flex-wrap gap-2">
-                            {categories.map((cat) => (
-                                <button key={cat.name} type="button" onClick={() => handleCategorySelect(cat)} className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${category === cat.name ? 'bg-slate-800 border-white/20 ring-1 ring-white/10 text-white' : 'bg-slate-900/50 border-slate-800 text-slate-500'}`}>
-                                    <cat.icon size={14} className={category === cat.name ? cat.color : 'text-slate-700'} />
-                                    <span className="text-xs font-bold">{cat.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Casamento Silva" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none" /></div>
                         <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Cliente</label><select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none"><option value="">Individual / Avulso</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
@@ -266,13 +281,24 @@ const EventModal: React.FC<EventModalProps> = ({ initialData, onClose, onSave, c
                         <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Início</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none" /></div>
                         <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Fim</label><input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none" /></div>
                     </div>
+
+                    <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3 block">Atribuir Equipe</label>
+                        <div className="flex flex-wrap gap-2">
+                           <button onClick={() => setAssignedStaff([])} className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${assignedStaff.length === 0 ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>Apenas Eu</button>
+                           {employees.map(emp => (
+                             <button key={emp.id} onClick={() => toggleStaff(emp.id)} className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${assignedStaff.includes(emp.id) ? 'bg-slate-800 border-white/20 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                                {emp.photo && <img src={emp.photo} className="w-4 h-4 rounded-full" />}
+                                {emp.name}
+                             </button>
+                           ))}
+                        </div>
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Local</label><input type="text" value={location} onChange={e => setLocation(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none" /></div>
-                        <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Valor (€)</label><input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none font-mono" /></div>
+                        <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Valor Total (€)</label><input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-pink-500 outline-none font-mono" /></div>
                     </div>
-                    
-                    <div><label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1.5 block">Pack / Observações</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white h-24 resize-none outline-none focus:border-pink-500"></textarea></div>
                 </div>
                 
                 <div className="mt-6 pt-4 border-t border-slate-800">
