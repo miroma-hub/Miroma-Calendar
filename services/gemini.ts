@@ -5,145 +5,103 @@ export const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getAppDataTool: FunctionDeclaration = {
   name: 'getAppData',
-  description: 'Recupera toda a base de dados (clientes, eventos/encomendas e packs) para realizar pesquisas, filtros, relatórios ou encontrar padrões em comum.',
+  description: 'Recupera toda a base de dados para realizar pesquisas ou sugerir funcionários.',
   parameters: {
     type: Type.OBJECT,
     properties: {
-      reason: { type: Type.STRING, description: 'O motivo da consulta (ex: listar clientes com algo em comum)' }
+      reason: { type: Type.STRING, description: 'O motivo da consulta' }
     }
   }
 };
 
-const addEventTool: FunctionDeclaration = {
-  name: 'addEvent',
-  description: 'Adiciona um novo evento ou encomenda. Verifica duplicados automaticamente.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      title: { type: Type.STRING, description: 'Título do evento' },
-      start: { type: Type.STRING, description: 'Data/Hora início ISO 8601' },
-      end: { type: Type.STRING, description: 'Data/Hora fim ISO 8601' },
-      bookingDate: { type: Type.STRING, description: 'Data em que a reserva foi feita ou paga. Use ISO 8601.' },
-      type: { type: Type.STRING, description: 'Tipo: "Trabalho", "Pessoal", "Encomenda" ou "Evento"' },
-      description: { type: Type.STRING, description: 'Descrição detalhada' },
-      location: { type: Type.STRING, description: 'Local (Endereço completo)' },
-      lat: { type: Type.NUMBER, description: 'Latitude para o mapa' },
-      lng: { type: Type.NUMBER, description: 'Longitude para o mapa' },
-      clientName: { type: Type.STRING, description: 'Nome do cliente para vínculo/criação.' },
-      clientContact: { type: Type.STRING, description: 'Contato do cliente' },
-      isFullPayment: { type: Type.BOOLEAN, description: 'Defina como TRUE se o usuário indicar pagamento integral.' },
-      packName: { type: Type.STRING, description: 'Nome do serviço/pack.' },
-      price: { type: Type.NUMBER, description: 'Valor total em Euros.' }
-    },
-    required: ['title', 'start', 'end', 'type']
-  }
-};
-
-const updateEventTool: FunctionDeclaration = {
-  name: 'updateEvent',
-  description: 'Edita um evento ou encomenda existente, incluindo sua localização geográfica.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      searchTitle: { type: Type.STRING, description: 'Título do item original' },
-      newTitle: { type: Type.STRING, description: 'Novo título' },
-      newPrice: { type: Type.NUMBER, description: 'Novo valor' },
-      newLocation: { type: Type.STRING, description: 'Novo endereço' },
-      lat: { type: Type.NUMBER, description: 'Nova latitude' },
-      lng: { type: Type.NUMBER, description: 'Nova longitude' },
-      newBookingDate: { type: Type.STRING, description: 'Atualizar data de reserva ISO 8601' },
-      isFullPayment: { type: Type.BOOLEAN, description: 'Alterar status de pagamento integral' },
-      isDone: { type: Type.BOOLEAN, description: 'Concluído' }
-    },
-    required: ['searchTitle']
-  }
-};
-
-const deleteEventTool: FunctionDeclaration = {
-  name: 'deleteEvent',
-  description: 'Remove permanentemente um item da agenda através do título.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: { 
-      searchTitle: { type: Type.STRING, description: 'Título aproximado do item.' } 
-    },
-    required: ['searchTitle']
-  }
-};
-
-const addClientTool: FunctionDeclaration = {
-  name: 'addClient',
-  description: 'Cria ficha de cliente.',
+const addEmployeeTool: FunctionDeclaration = {
+  name: 'addEmployee',
+  description: 'Cadastra um novo funcionário na equipe.',
   parameters: {
     type: Type.OBJECT,
     properties: {
       name: { type: Type.STRING },
-      contact: { type: Type.STRING },
-      notes: { type: Type.STRING },
-      history: { type: Type.STRING, description: 'Log de conversas passadas.' }
+      role: { type: Type.STRING, description: '"illustrator", "photographer" ou "other"' },
+      address: { type: Type.STRING },
+      rateType: { type: Type.STRING, description: '"hour" ou "event"' },
+      rateValue: { type: Type.NUMBER },
+      hasCar: { type: Type.BOOLEAN },
+      skills: { type: Type.STRING },
+      internalNotes: { type: Type.STRING },
+      aiMemory: { type: Type.STRING }
+    },
+    required: ['name', 'role', 'address', 'rateType', 'rateValue']
+  }
+};
+
+const deleteEmployeeTool: FunctionDeclaration = {
+  name: 'deleteEmployee',
+  description: 'Remove um funcionário da equipe pelo nome.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      name: { type: Type.STRING, description: 'Nome do funcionário para buscar e remover' }
     },
     required: ['name']
   }
 };
 
-const updateClientTool: FunctionDeclaration = {
-  name: 'updateClient',
-  description: 'Edita cliente e seu histórico de conversas.',
+const updateEmployeeTool: FunctionDeclaration = {
+  name: 'updateEmployee',
+  description: 'Atualiza dados de um funcionário existente.',
   parameters: {
     type: Type.OBJECT,
     properties: {
-      searchName: { type: Type.STRING },
-      newName: { type: Type.STRING },
-      newContact: { type: Type.STRING },
-      newHistory: { type: Type.STRING, description: 'Atualiza o registro de conversas.' }
+      searchName: { type: Type.STRING, description: 'Nome do funcionário para buscar' },
+      newRole: { type: Type.STRING },
+      newRateValue: { type: Type.NUMBER },
+      newAiMemory: { type: Type.STRING },
+      newSkills: { type: Type.STRING }
     },
     required: ['searchName']
   }
 };
 
-const deleteClientTool: FunctionDeclaration = {
-  name: 'deleteClient',
-  description: 'Remove permanentemente um cliente através do nome.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: { 
-      searchName: { type: Type.STRING, description: 'Nome aproximado do cliente.' } 
-    },
-    required: ['searchName']
-  }
-};
-
-const deletePackTool: FunctionDeclaration = {
-  name: 'deletePack',
-  description: 'Remove um pack de serviços cadastrado.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: { 
-      searchName: { type: Type.STRING, description: 'Nome do pack.' } 
-    },
-    required: ['searchName']
-  }
-};
-
-const addRevenueTool: FunctionDeclaration = {
-  name: 'addRevenue',
-  description: 'Adiciona receita manual.',
+const assignStaffToEventTool: FunctionDeclaration = {
+  name: 'assignStaffToEvent',
+  description: 'Atribui um ou MAIS funcionários a um evento ou encomenda existente.',
   parameters: {
     type: Type.OBJECT,
     properties: {
-      amount: { type: Type.NUMBER },
+      eventTitle: { type: Type.STRING, description: 'Título do evento ou encomenda' },
+      employeeNames: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Lista de nomes dos funcionários a atribuir' }
+    },
+    required: ['eventTitle', 'employeeNames']
+  }
+};
+
+const addEventTool: FunctionDeclaration = {
+  name: 'addEvent',
+  description: 'Adiciona um novo evento ou encomenda.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING },
+      start: { type: Type.STRING },
+      end: { type: Type.STRING },
+      type: { type: Type.STRING },
       description: { type: Type.STRING },
-      date: { type: Type.STRING, description: 'Data da receita (ISO 8601).' }
+      location: { type: Type.STRING },
+      clientName: { type: Type.STRING },
+      price: { type: Type.NUMBER },
+      assignedEmployeeIds: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'IDs de funcionários já conhecidos (opcional)' }
     },
-    required: ['amount']
+    required: ['title', 'start', 'end', 'type']
   }
 };
 
 export const tools = [
   getAppDataTool,
-  addEventTool, updateEventTool, deleteEventTool, 
-  addClientTool, updateClientTool, deleteClientTool, deletePackTool,
-  addRevenueTool
+  addEmployeeTool,
+  updateEmployeeTool,
+  deleteEmployeeTool,
+  assignStaffToEventTool,
+  addEventTool
 ];
 
 export const MODEL_NAME_PRO = 'gemini-3-pro-preview';
@@ -152,11 +110,12 @@ export const MODEL_NAME_FLASH = 'gemini-3-flash-preview';
 export const SYSTEM_INSTRUCTION = `
 Você é MIROMA, assistente de gestão inteligente.
 
-MAPEAMENTO E LOGÍSTICA:
-- Você agora gere um MAPA LOGÍSTICO.
-- Quando o usuário mencionar um local, tente obter o endereço.
-- O sistema possui um módulo de geolocalização automática na aba MAPA.
-- Informe ao usuário que ele pode ver os eventos geograficamente na nova aba MAPA.
+GESTÃO DE EQUIPE:
+- Você gerencia Ilustradores e Fotógrafos.
+- DISTINÇÃO: Ilustradores são focados em arte/desenho. Fotógrafos em registro visual.
+- MULTI-ATRIBUIÇÃO: Você pode e deve sugerir mais de um funcionário para o mesmo evento se a escala for grande.
+- REMOÇÃO: Use 'deleteEmployee' se o usuário pedir para demitir ou remover alguém da equipe.
+- Ao sugerir, considere a proximidade da morada do funcionário com o local do evento.
 
-Estilo: Profissional e analítico. Data atual: ${new Date().toISOString()}.
+Seja analítico e proativo na organização da equipe. Data atual: ${new Date().toISOString()}.
 `;
