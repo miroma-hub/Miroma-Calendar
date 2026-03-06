@@ -22,6 +22,24 @@ export interface Pack {
   isActive: boolean;
 }
 
+export type EmployeeRole = 'illustrator' | 'photographer' | 'other';
+
+export interface Employee {
+  id: string;
+  name: string;
+  role: EmployeeRole;
+  photo?: string; // Base64 avatar
+  portfolio?: string[]; // Base64 or links
+  address: string;
+  rateType: 'hour' | 'event';
+  rateValue: number;
+  hasCar: boolean;
+  skills: string; 
+  availabilityNotes: string; 
+  internalNotes: string; 
+  aiMemory?: string; 
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -39,7 +57,8 @@ export interface CalendarEvent {
   isFullPayment?: boolean;
   isDone?: boolean;
   shippingAddress?: string;
-  referenceImages?: string[]; 
+  referenceImages?: string[];
+  assignedEmployeeIds?: string[]; 
 }
 
 export interface ChatMessage {
@@ -56,4 +75,4 @@ export interface TelegramConfig {
   enabled: boolean;
 }
 
-export type ViewState = 'dashboard' | 'calendar' | 'clients' | 'packs' | 'orders' | 'settings' | 'billing' | 'events_view' | 'map';
+export type ViewState = 'dashboard' | 'calendar' | 'clients' | 'packs' | 'orders' | 'settings' | 'billing' | 'events_view' | 'team';
