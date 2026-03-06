@@ -1,12 +1,13 @@
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { EventType, CalendarEvent } from '../types';
-import { CheckCircle, Circle, Clock, Package, AlertTriangle, Plus, X, Search, MapPin, Upload, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { EventType, CalendarEvent, Employee } from '../types';
+import { CheckCircle, Circle, Clock, Package, AlertTriangle, Plus, X, Search, MapPin, Upload, Image as ImageIcon, Trash2, User, Users } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const OrdersView: React.FC = () => {
-  const { events, updateEvent, addEvent, clients } = useApp();
+  const { events, updateEvent, addEvent, clients, employees } = useApp();
   const [selectedOrder, setSelectedOrder] = useState<CalendarEvent | 'new' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -43,7 +44,7 @@ const OrdersView: React.FC = () => {
   return (
     <div className="p-6 h-full flex flex-col animate-fade-in relative">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div><h2 className="text-3xl font-bold gemini-gradient-text">Encomendas</h2><p className="text-slate-400">Gerencie a produção.</p></div>
+          <div><h2 className="text-3xl font-bold gemini-gradient-text">Encomendas</h2><p className="text-slate-400">Fluxo de produção e equipe atribuída.</p></div>
           <button type="button" onClick={() => setSelectedOrder('new')} className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-full transition-all shadow-lg shadow-orange-900/20"><Plus size={18} /><span>Nova Encomenda</span></button>
       </div>
       <div className="relative mb-6">
@@ -51,7 +52,6 @@ const OrdersView: React.FC = () => {
         <input type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800/20 backdrop-blur-sm border border-slate-700/30 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500 transition-colors" />
       </div>
 
-      {/* GRELHA COM ESPAÇAMENTO VERTICAL AMPLIADO (gap-y-14) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-14 gap-x-8 overflow-y-auto pb-16 custom-scrollbar">
         <div>
            <h3 className="text-xl font-semibold text-slate-200 mb-4 flex items-center gap-2"><Clock size={20} className="text-orange-400" /> Em Produção</h3>
@@ -59,12 +59,17 @@ const OrdersView: React.FC = () => {
              {orders.filter(o => !o.isDone).map(order => {
                const client = clients.find(c => c.id === order.clientId);
                const priority = getPriority(order.bookingDate);
+               const staffCount = order.assignedEmployeeIds?.length || 0;
+
                return (
                  <div key={order.id} onClick={() => setSelectedOrder(order)} className="bg-slate-800/20 backdrop-blur-sm border border-l-4 border-slate-700/50 border-l-orange-500 rounded-xl p-4 hover:bg-slate-800/30 transition-all shadow-md group cursor-pointer">
                     <div className="flex justify-between items-start">
                        <div className="flex-1">
                           <h4 className="font-bold text-white text-lg">{order.title}</h4>
-                          <p className="text-blue-300 text-sm mb-2">{client ? client.name : 'Manual'}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                             <p className="text-blue-300 text-sm">{client ? client.name : 'Venda Direta'}</p>
+                             {staffCount > 0 && <span className="text-[9px] bg-slate-900/50 px-2 py-0.5 rounded text-slate-500 flex items-center gap-1"><Users size={10}/> {staffCount} staff</span>}
+                          </div>
                           <div className="flex flex-wrap gap-2 text-xs text-slate-400 mb-3"><span className={`px-2 py-1 rounded border ${priority.color} flex items-center gap-1 font-bold`}>{priority.icon && <AlertTriangle size={12} />}{priority.label}</span></div>
                           <p className="text-slate-400 text-sm bg-slate-900/20 p-2 rounded-lg border border-slate-700/30 line-clamp-2">{order.description}</p>
                        </div>
@@ -92,6 +97,7 @@ const OrdersView: React.FC = () => {
             onClose={() => setSelectedOrder(null)} 
             onSave={handleSaveOrder}
             clients={clients}
+            employees={employees}
           />
       )}
     </div>
@@ -103,10 +109,10 @@ interface OrderModalProps {
     onClose: () => void;
     onSave: (data: Partial<CalendarEvent>) => void;
     clients: any[];
+    employees: Employee[];
 }
 
-// Fixed missing OrderModal component
-const OrderModal: React.FC<OrderModalProps> = ({ initialData, onClose, onSave, clients }) => {
+const OrderModal: React.FC<OrderModalProps> = ({ initialData, onClose, onSave, clients, employees }) => {
     const [title, setTitle] = useState(initialData?.title || '');
     const [clientId, setClientId] = useState(initialData?.clientId || '');
     const [description, setDescription] = useState(initialData?.description || '');
@@ -114,6 +120,11 @@ const OrderModal: React.FC<OrderModalProps> = ({ initialData, onClose, onSave, c
     const [shippingAddress, setShippingAddress] = useState(initialData?.shippingAddress || '');
     const [isFullPayment, setIsFullPayment] = useState(initialData?.isFullPayment || false);
     const [isDone, setIsDone] = useState(initialData?.isDone || false);
+    const [assignedStaff, setAssignedStaff] = useState<string[]>(initialData?.assignedEmployeeIds || []);
+
+    const toggleStaff = (id: string) => {
+      setAssignedStaff(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
 
     const handleSubmit = () => {
         if (!title) return;
@@ -124,7 +135,8 @@ const OrderModal: React.FC<OrderModalProps> = ({ initialData, onClose, onSave, c
             agreedPrice: price,
             shippingAddress,
             isFullPayment,
-            isDone
+            isDone,
+            assignedEmployeeIds: assignedStaff
         });
     };
 
@@ -135,49 +147,63 @@ const OrderModal: React.FC<OrderModalProps> = ({ initialData, onClose, onSave, c
                     <div><h3 className="text-xl font-bold text-white">{initialData ? 'Editar Encomenda' : 'Nova Encomenda'}</h3></div>
                     <button type="button" onClick={onClose}><X className="text-slate-400 hover:text-white"/></button>
                 </div>
-                <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+                <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs text-slate-400 uppercase font-bold">Título</label>
-                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" />
+                            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block mb-1.5">Título do Projeto</label>
+                            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-orange-500 outline-none" />
                         </div>
                         <div>
-                            <label className="text-xs text-slate-400 uppercase font-bold">Cliente</label>
-                            <select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1">
+                            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block mb-1.5">Cliente</label>
+                            <select value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-orange-500 outline-none">
                                 <option value="">Selecione...</option>
                                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
                     </div>
+
                     <div>
-                        <label className="text-xs text-slate-400 uppercase font-bold">Endereço de Envio</label>
-                        <div className="flex items-center gap-2 mt-1">
+                        <label className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3 block">Equipe de Produção</label>
+                        <div className="flex flex-wrap gap-2">
+                           <button onClick={() => setAssignedStaff([])} className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${assignedStaff.length === 0 ? 'bg-orange-600 border-orange-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>Produção Própria</button>
+                           {employees.map(emp => (
+                             <button 
+                                key={emp.id} 
+                                onClick={() => toggleStaff(emp.id)} 
+                                className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${assignedStaff.includes(emp.id) ? 'bg-slate-800 border-white/20 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}
+                             >
+                                {emp.photo && <img src={emp.photo} className="w-4 h-4 rounded-full" />}
+                                {emp.name}
+                             </button>
+                           ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block mb-1.5">Endereço de Envio</label>
+                        <div className="flex items-center gap-2">
                             <MapPin size={18} className="text-slate-500" />
-                            <input type="text" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white" />
+                            <input type="text" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-orange-500 outline-none" />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs text-slate-400 uppercase font-bold">Valor (€)</label>
-                            <input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1" />
+                            <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block mb-1.5">Valor (€)</label>
+                            <input type="number" value={price} onChange={e => setPrice(Number(e.target.value))} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-orange-500 outline-none font-mono" />
                         </div>
                         <div className="flex items-center gap-2 pt-6">
-                            <input type="checkbox" id="isFullPayment" checked={isFullPayment} onChange={e => setIsFullPayment(e.target.checked)} className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-orange-600 focus:ring-orange-500" />
-                            <label htmlFor="isFullPayment" className="text-white text-sm font-bold">Pago a 100%</label>
+                            <input type="checkbox" id="isFullPayment" checked={isFullPayment} onChange={e => setIsFullPayment(e.target.checked)} className="w-5 h-5 rounded border-slate-700 bg-slate-800 text-orange-600 focus:ring-orange-500" />
+                            <label htmlFor="isFullPayment" className="text-white text-sm font-bold">Totalmente Pago</label>
                         </div>
                     </div>
                     <div>
-                        <label className="text-xs text-slate-400 uppercase font-bold">Descrição / Itens</label>
-                        <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-600/50 rounded-lg p-3 text-white mt-1 h-32 resize-none"></textarea>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <input type="checkbox" id="isDone" checked={isDone} onChange={e => setIsDone(e.target.checked)} className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-green-600 focus:ring-green-500" />
-                        <label htmlFor="isDone" className="text-white text-sm font-bold">Concluído</label>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold tracking-widest block mb-1.5">Especificações da Encomenda</label>
+                        <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-white focus:border-orange-500 outline-none h-32 resize-none custom-scrollbar"></textarea>
                     </div>
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-700/50">
-                     <button type="button" onClick={handleSubmit} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl transition-colors shadow-lg">
-                        {initialData ? 'Salvar Alterações' : 'Criar Encomenda'}
+                     <button type="button" onClick={handleSubmit} className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:brightness-110 text-white font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95">
+                        {initialData ? 'Atualizar Encomenda' : 'Lançar Encomenda'}
                      </button>
                 </div>
             </div>
