@@ -11,9 +11,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    
     <link rel="manifest" href="manifest.json" />
     <style>
       body {
@@ -28,14 +25,13 @@
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
-      .leaflet-container { background: #0f172a !important; width: 100%; height: 100%; }
-      .custom-popup .leaflet-popup-content-wrapper {
-        background: rgba(15, 23, 42, 0.95) !important;
-        backdrop-filter: blur(12px);
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 1.5rem !important;
-      }
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.1); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.2); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.4); }
+
+      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      .animate-blink { animation: blink 1s step-end infinite; }
     </style>
     <script type="importmap">
 {
@@ -52,16 +48,16 @@
     "date-fns": "https://esm.sh/date-fns@4.1.0",
     "date-fns/": "https://esm.sh/date-fns@4.1.0/",
     "date-fns/locale": "https://esm.sh/date-fns@4.1.0/locale",
-    "leaflet": "https://esm.sh/leaflet@1.9.4",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "leaflet": "https://esm.sh/leaflet@^1.9.4"
   }
 }
 </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="index.tsx?v=1.1.1"></script>
+    <script type="module" src="index.tsx?v=1.2.0"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
