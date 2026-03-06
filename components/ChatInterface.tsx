@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, X, Loader2, Mic, Image as ImageIcon, FileText, Paperclip, Zap } from 'lucide-react';
 import { Content, Part } from '@google/genai';
-import { ChatMessage, EventType, CalendarEvent, Client, Pack } from '../types';
+import { ChatMessage, EventType, CalendarEvent, Client, Pack, Employee } from '../types';
 import { ai, MODEL_NAME_PRO, MODEL_NAME_FLASH, SYSTEM_INSTRUCTION, tools } from '../services/gemini';
 import { useApp } from '../context/AppContext';
 import ReactMarkdown from 'react-markdown';
@@ -14,30 +14,32 @@ interface ChatInterfaceProps {
 }
 
 declare global {
-  interface Window {
+  interface window {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
-  const { addEvent, updateEvent, deleteEvent, addClient, updateClient, deleteClient, deletePack, clients, events, packs } = useApp();
+  const { addEvent, updateEvent, deleteEvent, addClient, updateClient, deleteClient, deletePack, addEmployee, updateEmployee, deleteEmployee, clients, events, packs, employees } = useApp();
   
   const currentClientsRef = useRef<Client[]>([]);
   const currentEventsRef = useRef<CalendarEvent[]>([]);
   const currentPacksRef = useRef<Pack[]>([]);
+  const currentEmployeesRef = useRef<Employee[]>([]);
 
   useEffect(() => {
     currentClientsRef.current = clients;
     currentEventsRef.current = events;
     currentPacksRef.current = packs;
-  }, [clients, events, packs]);
+    currentEmployeesRef.current = employees;
+  }, [clients, events, packs, employees]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '0',
       role: 'model',
-      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua agenda e faturamento hoje? Estou conectada aos modelos Pro e Flash para garantir que nunca fiquemos offline.',
+      text: 'Olá. Sou MIROMA. Como posso ajudar a gerir sua equipe e agenda hoje? Posso sugerir funcionários ideais para seus eventos baseando-me na localização deles.',
       timestamp: new Date()
     }
   ]);
@@ -64,7 +66,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   }, []);
 
   const toggleListening = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
     if (isListening) {
       setIsListening(false);
@@ -75,7 +77,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   };
 
   const startRecognitionLoop = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (recognitionRef.current) recognitionRef.current.abort();
     try {
       const recognition = new SpeechRecognition();
@@ -126,8 +128,69 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
           result = JSON.stringify({
             clients: currentClientsRef.current,
             events: currentEventsRef.current,
-            packs: currentPacksRef.current
+            packs: currentPacksRef.current,
+            employees: currentEmployeesRef.current
           });
+          break;
+        }
+
+        case 'addEmployee': {
+          const newEmp = addEmployee({
+            name: args.name,
+            role: args.role,
+            address: args.address,
+            rateType: args.rateType,
+            rateValue: args.rateValue,
+            hasCar: args.hasCar || false,
+            skills: args.skills || '',
+            availabilityNotes: '',
+            internalNotes: args.internalNotes || '',
+            aiMemory: args.aiMemory || ''
+          });
+          currentEmployeesRef.current = [...currentEmployeesRef.current, newEmp];
+          result = `Sucesso: Funcionário ${newEmp.name} cadastrado como ${newEmp.role}.`;
+          break;
+        }
+
+        case 'deleteEmployee': {
+          const search = args.name.toLowerCase();
+          const target = currentEmployeesRef.current.find(e => e.name.toLowerCase().includes(search));
+          if (!target) return "Funcionário não encontrado.";
+          deleteEmployee(target.id);
+          currentEmployeesRef.current = currentEmployeesRef.current.filter(e => e.id !== target.id);
+          result = `Funcionário ${target.name} removido com sucesso da equipe.`;
+          break;
+        }
+
+        case 'updateEmployee': {
+          const search = args.searchName.toLowerCase();
+          const target = currentEmployeesRef.current.find(e => e.name.toLowerCase().includes(search));
+          if (!target) return "Funcionário não encontrado.";
+          updateEmployee(target.id, {
+            role: args.newRole || target.role,
+            rateValue: args.newRateValue || target.rateValue,
+            aiMemory: args.newAiMemory || target.aiMemory,
+            skills: args.newSkills || target.skills
+          });
+          result = `Funcionário ${target.name} atualizado.`;
+          break;
+        }
+
+        case 'assignStaffToEvent': {
+          const eventSearch = args.eventTitle.toLowerCase();
+          const targetEvent = currentEventsRef.current.find(e => e.title.toLowerCase().includes(eventSearch));
+          if (!targetEvent) return "Evento ou Encomenda não encontrada.";
+
+          const idsToAssign: string[] = [];
+          args.employeeNames.forEach((name: string) => {
+            const emp = currentEmployeesRef.current.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
+            if (emp) idsToAssign.push(emp.id);
+          });
+
+          if (idsToAssign.length === 0) return "Nenhum funcionário encontrado com os nomes fornecidos.";
+          
+          updateEvent(targetEvent.id, { assignedEmployeeIds: idsToAssign });
+          result = `Sucesso: Atribuídos ${idsToAssign.length} funcionários ao evento "${targetEvent.title}".`;
           break;
         }
 
@@ -175,7 +238,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
             packName: args.packName,
             agreedPrice: args.price,
             isFullPayment: args.isFullPayment || false,
-            bookingDate: args.bookingDate || new Date().toISOString()
+            bookingDate: args.bookingDate || new Date().toISOString(),
+            assignedEmployeeIds: args.assignedEmployeeIds || []
           });
           
           currentEventsRef.current = [...currentEventsRef.current, newEvent];
@@ -299,7 +363,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
       messageParts.push({ inlineData: { data: currentAttachment.data, mimeType: currentAttachment.mimeType } });
     }
 
-    // Função interna para processar a mensagem com um modelo específico
     const processWithModel = async (modelName: string) => {
       const chat = ai.chats.create({
         model: modelName,
@@ -324,30 +387,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     };
 
     try {
-      // Tentativa 1: Gemini Pro
       const response = await processWithModel(MODEL_NAME_PRO);
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Pronto.", timestamp: new Date() }]);
     } catch (proError: any) {
-      console.warn("Gemini Pro falhou (possível limite de taxa). Tentando Gemini Flash...", proError);
+      console.warn("Gemini Pro falhou. Failover para Flash...", proError);
       setIsFlashFallback(true);
-      
       try {
-        // Tentativa 2: Gemini Flash (Failover)
         const response = await processWithModel(MODEL_NAME_FLASH);
-        setMessages(prev => [...prev, { 
-          id: Date.now().toString(), 
-          role: 'model', 
-          text: response.text || "Pronto. (Processado via Flash devido a limites no modelo Pro)", 
-          timestamp: new Date() 
-        }]);
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Pronto.", timestamp: new Date() }]);
       } catch (flashError: any) {
-        console.error("Gemini Flash também falhou:", flashError);
-        setMessages(prev => [...prev, { 
-          id: Date.now().toString(), 
-          role: 'model', 
-          text: `Erro crítico de processamento: ${flashError.message || 'Verifique sua conexão ou cota da API.'}`, 
-          timestamp: new Date() 
-        }]);
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: `Erro: ${flashError.message}`, timestamp: new Date() }]);
       }
     } finally { 
       setIsProcessing(false); 
@@ -375,11 +424,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
         {isProcessing && (
             <div className="text-xs text-slate-500 flex items-center gap-2 px-2 animate-pulse">
                 <Loader2 className="animate-spin" size={14}/> 
-                {isFlashFallback ? (
-                    <span className="flex items-center gap-1 text-orange-400"><Zap size={10}/> Limite Pro atingido. Usando modo Flash...</span>
-                ) : (
-                    "Consultando memória e registros..."
-                )}
+                {isFlashFallback ? <span className="text-orange-400">Failover: Gemini Flash em uso...</span> : "Consultando memória e registros..."}
             </div>
         )}
         <div ref={messagesEndRef} />
