@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, Users, Settings, Sparkles, Package, Tag, Wallet, CalendarRange, Map as MapIcon } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, Sparkles, Package, Tag, Wallet, CalendarRange, Briefcase } from 'lucide-react';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -14,9 +14,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, onOpenAI }
     { id: 'dashboard', icon: LayoutDashboard, label: 'Painel' },
     { id: 'billing', icon: Wallet, label: 'Faturamento' },
     { id: 'events_view', icon: CalendarRange, label: 'Eventos' },
-    { id: 'map', icon: MapIcon, label: 'Mapa' },
     { id: 'orders', icon: Package, label: 'Encomendas' },
     { id: 'clients', icon: Users, label: 'Clientes' },
+    { id: 'team', icon: Briefcase, label: 'Equipe' },
     { id: 'packs', icon: Tag, label: 'Packs' },
     { id: 'settings', icon: Settings, label: 'Ajustes' },
   ];
