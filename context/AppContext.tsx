@@ -1,12 +1,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CalendarEvent, Client, EventType, Pack, TelegramConfig, ViewState } from '../types';
+import { CalendarEvent, Client, EventType, Pack, TelegramConfig, ViewState, Employee } from '../types';
 import { isSameMonth, parseISO } from 'date-fns';
 
 interface AppContextType {
   events: CalendarEvent[];
   clients: Client[];
   packs: Pack[];
+  employees: Employee[];
   telegramConfig: TelegramConfig;
   currentView: ViewState;
   calendarDate: Date;
@@ -23,6 +24,9 @@ interface AppContextType {
   addPack: (pack: Omit<Pack, 'id'>) => Pack;
   updatePack: (id: string, updates: Partial<Pack>) => void;
   deletePack: (id: string) => void;
+  addEmployee: (emp: Omit<Employee, 'id'>) => Employee;
+  updateEmployee: (id: string, updates: Partial<Employee>) => void;
+  deleteEmployee: (id: string) => void;
   updateTelegramConfig: (config: TelegramConfig) => void;
   calculateMonthlyRevenue: (date: Date) => number;
   getClientRevenue: (clientId: string) => number;
@@ -53,6 +57,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [employees, setEmployees] = useState<Employee[]>(() => {
+    const saved = localStorage.getItem('miroma_employees');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(() => {
     const saved = localStorage.getItem('miroma_telegram');
     return saved ? JSON.parse(saved) : { botToken: '', chatId: '', enabled: false };
@@ -61,6 +70,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => { localStorage.setItem('miroma_events', JSON.stringify(events)); }, [events]);
   useEffect(() => { localStorage.setItem('miroma_clients', JSON.stringify(clients)); }, [clients]);
   useEffect(() => { localStorage.setItem('miroma_packs', JSON.stringify(packs)); }, [packs]);
+  useEffect(() => { localStorage.setItem('miroma_employees', JSON.stringify(employees)); }, [employees]);
   useEffect(() => { localStorage.setItem('miroma_telegram', JSON.stringify(telegramConfig)); }, [telegramConfig]);
 
   const sendTelegramMessage = async (text: string) => {
@@ -80,7 +90,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ...eventData,
       id: Math.random().toString(36).substr(2, 9),
       bookingDate: eventData.bookingDate || new Date().toISOString(),
-      referenceImages: eventData.referenceImages || []
+      referenceImages: eventData.referenceImages || [],
+      assignedEmployeeIds: eventData.assignedEmployeeIds || []
     };
     setEvents(prev => [...prev, newEvent]);
     return newEvent;
@@ -122,12 +133,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPacks(prev => prev.filter(p => p.id !== id));
   };
 
+  const addEmployee = (empData: Omit<Employee, 'id'>) => {
+    const newEmp = { ...empData, id: Math.random().toString(36).substr(2, 9) };
+    setEmployees(prev => [...prev, newEmp]);
+    return newEmp;
+  };
+
+  const updateEmployee = (id: string, updates: Partial<Employee>) => {
+    setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+  };
+
+  const deleteEmployee = (id: string) => {
+    setEmployees(prev => prev.filter(e => e.id !== id));
+  };
+
   const updateTelegramConfig = (config: TelegramConfig) => {
     setTelegramConfig(config);
   };
 
   const resetData = () => {
-      setEvents([]); setClients([]); setPacks([]); localStorage.clear();
+      setEvents([]); setClients([]); setPacks([]); setEmployees([]); localStorage.clear();
   };
 
   const importBackup = (data: any): boolean => {
@@ -135,6 +160,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (data.events) setEvents(data.events);
           if (data.clients) setClients(data.clients);
           if (data.packs) setPacks(data.packs);
+          if (data.employees) setEmployees(data.employees);
           if (data.telegramConfig) setTelegramConfig(data.telegramConfig);
           return true;
       } catch (e) { return false; }
@@ -166,11 +192,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{ 
-      events, clients, packs, telegramConfig, currentView, calendarDate, selectedEventId,
+      events, clients, packs, employees, telegramConfig, currentView, calendarDate, selectedEventId,
       setCurrentView, setCalendarDate, setSelectedEventId,
       addEvent, updateEvent, deleteEvent, 
       addClient, updateClient, deleteClient,
       addPack, updatePack, deletePack,
+      addEmployee, updateEmployee, deleteEmployee,
       updateTelegramConfig, calculateMonthlyRevenue,
       getClientRevenue, sendTelegramMessage, resetData, importBackup
     }}>
