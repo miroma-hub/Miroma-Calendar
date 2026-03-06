@@ -6,7 +6,7 @@ import ClientList from './components/ClientList';
 import PacksView from './components/PacksView';
 import OrdersView from './components/OrdersView';
 import EventsListView from './components/EventsListView';
-import MapView from './components/MapView'; // Certifique-se de que o arquivo no disco é MapView.tsx
+import TeamView from './components/TeamView';
 import SettingsView from './components/SettingsView';
 import ChatInterface from './components/ChatInterface';
 import BillingView from './components/BillingView';
@@ -24,10 +24,10 @@ const AppContent: React.FC = () => {
     switch (currentView) {
       case 'dashboard': return <DashboardView />;
       case 'clients': return <ClientList />;
+      case 'team': return <TeamView />;
       case 'packs': return <PacksView />;
       case 'orders': return <OrdersView />;
       case 'events_view': return <EventsListView />;
-      case 'map': return <MapView />;
       case 'billing': return <BillingView />;
       case 'settings': return <SettingsView />;
       default: return <DashboardView />;
