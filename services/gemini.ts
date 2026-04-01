@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 
-export const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const getAppDataTool: FunctionDeclaration = {
   name: 'getAppData',
@@ -95,17 +95,121 @@ const addEventTool: FunctionDeclaration = {
   }
 };
 
+const updateEventTool: FunctionDeclaration = {
+  name: 'updateEvent',
+  description: 'Atualiza dados de um evento ou encomenda existente.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      searchTitle: { type: Type.STRING, description: 'Título do evento para buscar' },
+      newTitle: { type: Type.STRING },
+      newPrice: { type: Type.NUMBER },
+      newBookingDate: { type: Type.STRING },
+      isFullPayment: { type: Type.BOOLEAN },
+      isDone: { type: Type.BOOLEAN }
+    },
+    required: ['searchTitle']
+  }
+};
+
+const deleteEventTool: FunctionDeclaration = {
+  name: 'deleteEvent',
+  description: 'Remove um evento ou encomenda pelo título.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      searchTitle: { type: Type.STRING, description: 'Título do evento para buscar e remover' }
+    },
+    required: ['searchTitle']
+  }
+};
+
+const addClientTool: FunctionDeclaration = {
+  name: 'addClient',
+  description: 'Adiciona um novo cliente.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      name: { type: Type.STRING },
+      contact: { type: Type.STRING },
+      notes: { type: Type.STRING },
+      history: { type: Type.STRING }
+    },
+    required: ['name']
+  }
+};
+
+const updateClientTool: FunctionDeclaration = {
+  name: 'updateClient',
+  description: 'Atualiza dados de um cliente existente.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      searchName: { type: Type.STRING, description: 'Nome do cliente para buscar' },
+      newName: { type: Type.STRING },
+      newContact: { type: Type.STRING },
+      newHistory: { type: Type.STRING }
+    },
+    required: ['searchName']
+  }
+};
+
+const deleteClientTool: FunctionDeclaration = {
+  name: 'deleteClient',
+  description: 'Remove um cliente pelo nome.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      searchName: { type: Type.STRING, description: 'Nome do cliente para buscar e remover' }
+    },
+    required: ['searchName']
+  }
+};
+
+const deletePackTool: FunctionDeclaration = {
+  name: 'deletePack',
+  description: 'Remove um pack pelo nome.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      searchName: { type: Type.STRING, description: 'Nome do pack para buscar e remover' }
+    },
+    required: ['searchName']
+  }
+};
+
+const addRevenueTool: FunctionDeclaration = {
+  name: 'addRevenue',
+  description: 'Adiciona uma receita avulsa ou ajuste financeiro.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      amount: { type: Type.NUMBER, description: 'Valor da receita' },
+      description: { type: Type.STRING, description: 'Descrição da receita' },
+      date: { type: Type.STRING, description: 'Data da receita no formato ISO' }
+    },
+    required: ['amount']
+  }
+};
+
 export const tools = [
   getAppDataTool,
   addEmployeeTool,
   updateEmployeeTool,
   deleteEmployeeTool,
   assignStaffToEventTool,
-  addEventTool
+  addEventTool,
+  updateEventTool,
+  deleteEventTool,
+  addClientTool,
+  updateClientTool,
+  deleteClientTool,
+  deletePackTool,
+  addRevenueTool
 ];
 
-export const MODEL_NAME_PRO = 'gemini-3-pro-preview';
-export const MODEL_NAME_FLASH = 'gemini-3-flash-preview';
+export const MODEL_NAME_PRO = 'gemini-3.1-pro-preview';
+export const MODEL_NAME_FLASH = 'gemini-3.1-flash-preview';
 
 export const SYSTEM_INSTRUCTION = `
 Você é MIROMA, assistente de gestão inteligente.
@@ -116,6 +220,10 @@ GESTÃO DE EQUIPE:
 - MULTI-ATRIBUIÇÃO: Você pode e deve sugerir mais de um funcionário para o mesmo evento se a escala for grande.
 - REMOÇÃO: Use 'deleteEmployee' se o usuário pedir para demitir ou remover alguém da equipe.
 - Ao sugerir, considere a proximidade da morada do funcionário com o local do evento.
+
+GESTÃO DE EVENTOS E CLIENTES:
+- Você pode criar, atualizar e apagar eventos, clientes, packs e faturamentos.
+- Se o usuário pedir para apagar algo, use as ferramentas de deleção apropriadas (deleteEvent, deleteClient, deletePack).
 
 Seja analítico e proativo na organização da equipe. Data atual: ${new Date().toISOString()}.
 `;
