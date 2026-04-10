@@ -67,8 +67,8 @@ const EventsListView: React.FC = () => {
   }
 
   return (
-    <div className="p-6 h-full flex flex-col animate-fade-in relative">
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="p-4 md:p-6 flex flex-col md:h-full md:overflow-hidden animate-fade-in relative">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
         <div>
             <h2 className="text-3xl font-bold gemini-gradient-text">Eventos</h2>
             <p className="text-slate-400 mt-1">Sua linha do tempo de compromissos.</p>
@@ -79,12 +79,12 @@ const EventsListView: React.FC = () => {
           </button>
       </div>
 
-      <div className="relative mb-8">
+      <div className="relative mb-8 flex-shrink-0">
         <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-400" size={22} />
         <input type="text" placeholder="Pesquisar eventos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800/10 backdrop-blur-sm border border-slate-700/30 rounded-2xl py-4 pl-14 pr-6 text-white focus:outline-none focus:border-pink-500 transition-colors text-lg" />
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar pb-10 pr-2">
+      <div className="flex-1 md:overflow-y-auto custom-scrollbar pb-10 pr-2">
         <div className="mb-12">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
             <CalendarIcon className="text-pink-400" size={20} /> 
