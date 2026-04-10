@@ -42,17 +42,17 @@ const OrdersView: React.FC = () => {
   }
 
   return (
-    <div className="p-6 h-full flex flex-col animate-fade-in relative">
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div className="p-4 md:p-6 flex flex-col md:h-full md:overflow-hidden animate-fade-in relative">
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 flex-shrink-0">
           <div><h2 className="text-3xl font-bold gemini-gradient-text">Encomendas</h2><p className="text-slate-400">Fluxo de produção e equipe atribuída.</p></div>
           <button type="button" onClick={() => setSelectedOrder('new')} className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-full transition-all shadow-lg shadow-orange-900/20"><Plus size={18} /><span>Nova Encomenda</span></button>
       </div>
-      <div className="relative mb-6">
+      <div className="relative mb-6 flex-shrink-0">
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
         <input type="text" placeholder="Pesquisar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800/20 backdrop-blur-sm border border-slate-700/30 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500 transition-colors" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-14 gap-x-8 overflow-y-auto pb-16 custom-scrollbar">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-14 gap-x-8 md:overflow-y-auto pb-16 custom-scrollbar">
         <div>
            <h3 className="text-xl font-semibold text-slate-200 mb-4 flex items-center gap-2"><Clock size={20} className="text-orange-400" /> Em Produção</h3>
            <div className="space-y-6">
