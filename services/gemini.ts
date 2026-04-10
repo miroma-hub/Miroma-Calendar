@@ -209,7 +209,7 @@ export const tools = [
 ];
 
 export const MODEL_NAME_PRO = 'gemini-3.1-pro-preview';
-export const MODEL_NAME_FLASH = 'gemini-3.1-flash-preview';
+export const MODEL_NAME_FLASH = 'gemini-3-flash-preview';
 
 export const SYSTEM_INSTRUCTION = `
 Você é MIROMA, assistente de gestão inteligente.
