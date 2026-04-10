@@ -56,8 +56,8 @@ const BillingView: React.FC = () => {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col animate-fade-in relative">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 md:p-6 flex flex-col md:h-full md:overflow-hidden animate-fade-in relative">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 flex-shrink-0">
         <div><h2 className="text-3xl font-bold gemini-gradient-text">Faturamento</h2></div>
         <div className="flex items-center gap-4 bg-slate-800/40 rounded-full px-4 py-2 border border-slate-700/50 backdrop-blur-sm">
            <button onClick={() => setCurrentYear(currentYear - 1)} className="hover:text-blue-400"><ChevronLeft /></button>
@@ -65,7 +65,7 @@ const BillingView: React.FC = () => {
            <button onClick={() => setCurrentYear(currentYear + 1)} className="hover:text-blue-400"><ChevronRight /></button>
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 flex-shrink-0">
          <div className="lg:col-span-2 bg-slate-800/20 border border-slate-700/30 rounded-2xl p-6 backdrop-blur-sm">
             <h3 className="text-lg font-semibold text-white mb-6">Visão Anual</h3>
             <div className="h-64 w-full">
@@ -82,7 +82,7 @@ const BillingView: React.FC = () => {
          </div>
          <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-slate-700/30 rounded-2xl p-6 flex flex-col justify-center items-center text-center backdrop-blur-sm"><TrendingUp size={32} className="text-green-400 mb-4" /><p className="text-slate-400 uppercase text-xs font-bold">Total Acumulado</p><p className="text-4xl font-bold text-white mt-2">€ {totalYearRevenue.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</p></div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 md:overflow-y-auto pb-10">
          <h3 className="text-xl font-bold text-white mb-4">Detalhamento Mensal</h3>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {data.map((month) => (
