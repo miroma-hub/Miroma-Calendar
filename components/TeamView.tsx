@@ -57,7 +57,7 @@ const TeamView: React.FC = () => {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col overflow-hidden">
+    <div className="p-4 md:p-6 flex flex-col md:h-full md:overflow-hidden">
       <div className="flex justify-between items-center mb-10 flex-shrink-0 px-2">
         <div>
           <h2 className="text-4xl font-black gemini-gradient-text tracking-tight">Equipe</h2>
@@ -87,7 +87,7 @@ const TeamView: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-8 overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
+      <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 md:gap-8 md:overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
         {filteredEmployees.map(emp => {
           const badge = getRoleBadge(emp.role);
           return (
