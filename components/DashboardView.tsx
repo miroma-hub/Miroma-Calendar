@@ -68,7 +68,7 @@ const DashboardView: React.FC = () => {
   );
 
   return (
-    <div className="h-full flex flex-col p-6 animate-fade-in overflow-hidden">
+    <div className="flex flex-col p-4 md:p-6 animate-fade-in md:h-full md:overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 flex-shrink-0">
         {/* Card Faturamento */}
         <button onClick={() => setActiveSummary('billing')} className="bg-slate-800/20 backdrop-blur-md border border-slate-700/30 p-4 rounded-xl flex items-center gap-3 hover:bg-slate-800/40 hover:border-green-500/30 transition-all group text-left">
@@ -109,7 +109,7 @@ const DashboardView: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex-1 bg-slate-900/10 backdrop-blur-sm border border-slate-700/30 rounded-2xl overflow-hidden relative shadow-2xl">
+      <div className="flex-1 min-h-[500px] md:min-h-0 bg-slate-900/10 backdrop-blur-sm border border-slate-700/30 rounded-2xl overflow-hidden relative shadow-2xl">
          <CalendarView isEmbedded={true} />
       </div>
 
