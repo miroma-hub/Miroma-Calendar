@@ -97,7 +97,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
       ref={containerRef} 
       onWheel={handleWheel}
       onMouseLeave={() => setHoveredDate(null)}
-      className={`h-full flex flex-col ${isEmbedded ? 'p-4' : 'p-6'} overflow-hidden relative select-none`} 
+      className={`flex flex-col ${isEmbedded ? 'p-4' : 'p-4 md:p-6'} md:h-full md:overflow-hidden relative select-none`} 
       onClick={() => { setDetailEvent(null); setSelectedEventId(null); }}
     >
       <div className="flex justify-between items-center mb-6 z-10">
@@ -272,7 +272,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                                 </div>
                                 <div className="space-y-5">
                                     <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Cliente Responsável</label><div className="flex items-center gap-3 text-white font-bold text-lg truncate"><User size={18} className="text-pink-400" />{client ? client.name : 'Individual'}</div></div>
-                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl">€ {detailEvent.agreedPrice?.toLocaleString('pt-PT')}</div></div>
+                                    <div><label className="text-[10px] uppercase font-black text-slate-500 mb-2 block tracking-widest">Investimento Total</label><div className="flex items-center gap-3 text-green-400 font-black text-3xl"><Euro size={20} /> {detailEvent.agreedPrice?.toLocaleString('pt-PT')}</div></div>
                                 </div>
                             </div>
                             <div className="bg-slate-800/30 border border-slate-700/30 rounded-[2rem] p-7 space-y-6 shadow-inner ring-1 ring-white/5">
@@ -280,7 +280,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ isEmbedded = false }) => {
                                 <div className="flex items-start gap-5"><Tag size={22} className="text-yellow-400 mt-1" /><div><label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Serviço Contratado</label><span className="text-slate-100 text-lg font-bold">{detailEvent.packName || 'Geral'}</span></div></div>
                                 {client?.notes && (
                                   <div className="flex items-start gap-5 pt-4 border-t border-slate-700/30">
-                                      <div className="p-1 rounded-md bg-blue-500/10"><Info size={22} className="text-blue-400" /></div>
+                                      <Info size={22} className="text-blue-400 mt-1" />
                                       <div>
                                           <label className="text-[10px] uppercase font-black text-slate-500 block mb-1 tracking-widest">Notas do Cliente</label>
                                           <span className="text-slate-300 text-sm leading-relaxed">{client.notes}</span>
