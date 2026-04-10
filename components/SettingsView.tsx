@@ -82,7 +82,7 @@ const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto animate-fade-in pb-20">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto animate-fade-in pb-20">
       <h2 className="text-3xl font-bold gemini-gradient-text mb-8">Configurações</h2>
 
       {/* Backup Section */}
