@@ -100,7 +100,7 @@ const ClientList: React.FC = () => {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col overflow-hidden">
+    <div className="p-4 md:p-6 flex flex-col md:h-full md:overflow-hidden">
       <div className="flex justify-between items-center mb-10 flex-shrink-0 px-2">
         <div>
           <h2 className="text-4xl font-black gemini-gradient-text tracking-tight">Clientes</h2>
@@ -160,7 +160,7 @@ const ClientList: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8 overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
+      <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 md:gap-8 md:overflow-y-auto pb-32 custom-scrollbar pr-2 items-stretch px-2">
         {sortedAndFilteredClients.map(client => {
           const revenue = getClientRevenue(client.id);
           const colors = ['from-blue-500 to-purple-600', 'from-pink-500 to-orange-500', 'from-green-500 to-teal-500', 'from-indigo-500 to-blue-500'];
