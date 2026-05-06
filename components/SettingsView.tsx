@@ -39,6 +39,7 @@ const SettingsView: React.FC = () => {
           events,
           clients,
           packs,
+          employees,
           telegramConfig
       };
       
