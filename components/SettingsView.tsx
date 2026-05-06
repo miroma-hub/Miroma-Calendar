@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Save, Bell, Send, Trash2, AlertTriangle, Download, Upload, Database } from 'lucide-react';
 
 const SettingsView: React.FC = () => {
-  const { telegramConfig, updateTelegramConfig, sendTelegramMessage, resetData, events, clients, packs, importBackup } = useApp();
+  const { telegramConfig, updateTelegramConfig, sendTelegramMessage, resetData, events, clients, packs, employees, importBackup } = useApp();
   const [token, setToken] = useState(telegramConfig.botToken);
   const [chatId, setChatId] = useState(telegramConfig.chatId);
   const [enabled, setEnabled] = useState(telegramConfig.enabled);
