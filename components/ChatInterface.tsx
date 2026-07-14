@@ -47,6 +47,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isFlashFallback, setIsFlashFallback] = useState(false);
+  const [useProModel, setUseProModel] = useState(false);
   const [attachment, setAttachment] = useState<{ data: string; mimeType: string; name: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -125,12 +126,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     try {
       switch (name) {
         case 'getAppData': {
-          result = JSON.stringify({
-            clients: currentClientsRef.current,
-            events: currentEventsRef.current,
-            packs: currentPacksRef.current,
-            employees: currentEmployeesRef.current
-          });
+          const q = args.searchQuery?.toLowerCase();
+          if (q) {
+            result = JSON.stringify({
+              clients: currentClientsRef.current.filter(c => c.name.toLowerCase().includes(q) || c.contact.toLowerCase().includes(q) || c.notes.toLowerCase().includes(q)),
+              events: currentEventsRef.current.filter(e => e.title.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q) || e.start.includes(q)),
+              packs: currentPacksRef.current.filter(p => p.name.toLowerCase().includes(q)),
+              employees: currentEmployeesRef.current.filter(e => e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q))
+            });
+          } else {
+            result = JSON.stringify({
+              clients: currentClientsRef.current,
+              events: currentEventsRef.current,
+              packs: currentPacksRef.current,
+              employees: currentEmployeesRef.current
+            });
+          }
           break;
         }
 
@@ -353,7 +364,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     setIsProcessing(true);
     setIsFlashFallback(false);
 
-    const history: Content[] = messages.map(m => ({
+    const history: Content[] = messages.slice(-10).map(m => ({
       role: m.role === 'model' ? 'model' : 'user',
       parts: [{ text: m.text || ' ' }]
     }));
@@ -387,10 +398,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
     };
 
     try {
-      const response = await processWithModel(MODEL_NAME_PRO);
+      const modelToUse = useProModel ? MODEL_NAME_PRO : MODEL_NAME_FLASH;
+      const response = await processWithModel(modelToUse);
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: response.text || "Pronto.", timestamp: new Date() }]);
     } catch (proError: any) {
-      console.warn("Gemini Pro falhou. Failover para Flash...", proError);
+      console.warn("Modelo principal falhou. Failover para Flash...", proError);
       setIsFlashFallback(true);
       try {
         const response = await processWithModel(MODEL_NAME_FLASH);
@@ -409,7 +421,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isOpen }) => {
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-[450px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col animate-slide-in-right">
       <div className="p-4 border-b border-slate-700 flex justify-between items-center flex-shrink-0">
-        <div className="flex items-center gap-2"><Sparkles className="text-blue-400" size={20} /><h2 className="text-lg font-bold gemini-gradient-text">MIROMA AI</h2></div>
+        <div className="flex items-center gap-2">
+            <Sparkles className="text-blue-400" size={20} />
+            <h2 className="text-lg font-bold gemini-gradient-text">MIROMA AI</h2>
+            <button 
+              onClick={() => setUseProModel(!useProModel)} 
+              title={useProModel ? "Modelo PRO Ativo (Mais custo, precisão máxima)" : "Modelo FLASH Ativo (Mais rápido e barato)"}
+              className={`ml-2 p-1.5 rounded-full transition-colors ${useProModel ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-800 text-slate-500 hover:text-slate-400'}`}
+            >
+              <Zap size={14} />
+            </button>
+        </div>
         <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={24} /></button>
       </div>
 
