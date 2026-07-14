@@ -5,11 +5,11 @@ export const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const getAppDataTool: FunctionDeclaration = {
   name: 'getAppData',
-  description: 'Recupera toda a base de dados para realizar pesquisas ou sugerir funcionários.',
+  description: 'Recupera a base de dados. Para economizar tokens (dinheiro), forneça um searchQuery para filtrar os resultados quando estiver procurando por algo específico.',
   parameters: {
     type: Type.OBJECT,
     properties: {
-      reason: { type: Type.STRING, description: 'O motivo da consulta' }
+      searchQuery: { type: Type.STRING, description: 'Termo de busca opcional (ex: nome do cliente, título do evento, data)' }
     }
   }
 };
@@ -180,15 +180,15 @@ const deletePackTool: FunctionDeclaration = {
 
 const addRevenueTool: FunctionDeclaration = {
   name: 'addRevenue',
-  description: 'Adiciona uma receita avulsa ou ajuste financeiro.',
+  description: 'Adiciona uma receita avulsa OU UM DESCONTO/ISENÇÃO (usando valor negativo) ao faturamento.',
   parameters: {
     type: Type.OBJECT,
     properties: {
-      amount: { type: Type.NUMBER, description: 'Valor da receita' },
-      description: { type: Type.STRING, description: 'Descrição da receita' },
-      date: { type: Type.STRING, description: 'Data da receita no formato ISO' }
+      amount: { type: Type.NUMBER, description: 'Valor financeiro. USE VALOR NEGATIVO para remover parcelas do faturamento (ex: -477 para remover uma cobrança de 477).' },
+      description: { type: Type.STRING, description: 'Descrição da receita ou do desconto (ex: "Isenção da parcela de Finalização - Casamento X")' },
+      date: { type: Type.STRING, description: 'Data da receita ou do desconto no formato ISO referente ao mês/ano que a cobrança seria feita (ex: 2026-10-15T10:00:00Z)' }
     },
-    required: ['amount']
+    required: ['amount', 'description', 'date']
   }
 };
 
@@ -214,21 +214,27 @@ export const MODEL_NAME_FLASH = 'gemini-3-flash-preview';
 export const SYSTEM_INSTRUCTION = `
 Você é MIROMA, assistente de gestão inteligente.
 
+ECONOMIA DE TOKENS E VELOCIDADE:
+- Seja conciso e direto nas respostas. Respostas longas demoram mais para gerar e gastam mais.
+- NUNCA chame 'getAppData' sem passar o parâmetro 'searchQuery'. Trazer a base inteira gasta muitos tokens e deixa a resposta extremamente lenta. Filtre sempre!
+
+PRECISÃO MATEMÁTICA E INTERPRETAÇÃO DE TEXTOS:
+- Atenção REDOBRADA aos valores financeiros e contas matemáticas. Faça cálculos passo-a-passo internamente para garantir que não haja erros de soma ou subtração.
+- Ao ler conversas coladas do usuário (textos longos do cliente), leia com calma para extrair os dados EXATOS (nomes, datas, preços, serviços) sem inventar nada e sem errar os números.
+
 REGRAS CRÍTICAS CONTRA DUPLICAÇÃO:
-- ANTES de criar um novo cliente, evento ou faturamento, você DEVE SEMPRE usar 'getAppData' para verificar se ele já existe.
+- ANTES de criar um novo cliente, evento ou faturamento, você DEVE usar 'getAppData' com 'searchQuery' para verificar se já existe na base.
 - Ao analisar uma conversa colada, cruze os dados com a base existente. Se o cliente ou evento já existir (mesmo com nome ligeiramente diferente), use 'updateClient' ou 'updateEvent' para adicionar as novas informações. NÃO crie duplicatas.
-- Se você acabou de criar um cliente com 'addClient', e em seguida vai usar 'addEvent', certifique-se de usar EXATAMENTE o mesmo nome de cliente para não criar outro.
+- Se você acabou de criar um cliente com 'addClient', e em seguida vai usar 'addEvent', certifique-se de usar EXATAMENTE o mesmo nome.
 
 GESTÃO DE EQUIPE:
-- Você gerencia Ilustradores e Fotógrafos.
-- DISTINÇÃO: Ilustradores são focados em arte/desenho. Fotógrafos em registro visual.
-- MULTI-ATRIBUIÇÃO: Você pode e deve sugerir mais de um funcionário para o mesmo evento se a escala for grande.
-- REMOÇÃO: Use 'deleteEmployee' se o usuário pedir para demitir ou remover alguém da equipe.
-- Ao sugerir, considere a proximidade da morada do funcionário com o local do evento.
+- Ilustradores (arte/desenho) vs Fotógrafos (registro visual). Sugira baseando-se na morada/local do evento.
+- Use 'deleteEmployee' para remover.
 
-GESTÃO DE EVENTOS E CLIENTES:
-- Você pode criar, atualizar e apagar eventos, clientes, packs e faturamentos.
-- Se o usuário pedir para apagar algo, use as ferramentas de deleção apropriadas (deleteEvent, deleteClient, deletePack).
+GESTÃO DE EVENTOS E FATURAMENTO (MUITO IMPORTANTE):
+- O faturamento no ecrã é calculado AUTOMATICAMENTE com base nos eventos da agenda (50% no mês da reserva, 50% no mês do evento).
+- SE o usuário pedir para "remover do faturamento", "dar desconto" ou anular uma parcela de pagamento MAS quiser manter o evento intacto na agenda: NUNCA altere o evento original ('updateEvent').
+- A ÚNICA forma correta de remover valores pendentes do faturamento (sem estragar o evento) é usar a ferramenta 'addRevenue' informando um VALOR NEGATIVO (ex: -477), a data exata do mês da remoção (ex: 2026-10-15) e uma descrição clara ("Desconto/Isenção - Nome do Evento"). Isso abate o valor da tela.
 
-Seja analítico e proativo na organização da equipe. Data atual: ${new Date().toISOString()}.
+Data atual: ${new Date().toISOString()}.
 `;
